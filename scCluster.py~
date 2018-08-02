@@ -27,10 +27,6 @@ import pylab as py
 # velocity.py and residuals.py, written by JLu.
 
 homeRoot = '/u/schappell/'
-cRoot = homeRoot+'code/c/'
-mnMockRoot = homeRoot+'pmnOld/mock/'
-mnoutRoot = homeRoot+'pmnOld/'
-plotRoot = homeRoot+'plots/'
 
 
 pi = math.pi
@@ -71,14 +67,14 @@ def forCluster(num=100,start=1,gamma=-0.22,alpha=1.67,delta=9.15,r_break=0.42,ba
     for i in range(num):
         tmplabel = base_label + '__' + str(i+start)
         testCMN(gamma=gamma,alpha=alpha,delta=delta,r_break=r_break,label=tmplabel,noAccel=noAccel,numAccel=numAccel)
-        os.system('g++ sc_mn_FINAL.cpp gauss_legendre.c -o sc_mn_cluster -std=c++11 -lpthread -I'+cRoot+' -I'+cRoot+'boost/config -L'+homeRoot+'multinest/MultiNest/lib -lmultinest')
+        os.system('g++ sc_mn_FINAL.cpp gauss_legendre.c -o sc_mn_cluster -std=c++11 -lpthread -I'+homeRoot+'code/c -I'+homeRoot+'code/c/boost/config -L'+homeRoot+'multinest/MultiNest/lib -lmultinest')
 
         if runMN==True:
             Rcut *= dist / au_in_pc
             outerCut *= dist / au_in_pc
             innerCut *= dist / au_in_pc
-            os.system('g++ sc_mn_FINAL.cpp gauss_legendre.c -o sc_mn_cluster -std=c++11 -lpthread -I'+cRoot+' -I'+cRoot+'boost/config -L'+homeRoot+'multinest/MultiNest/lib -lmultinest')
-            outCommand = './sc_mn_cluster '+mnMockRoot+''+tmplabel+' '+str(alpha)+' '+str(delta)+' '+str(r_break)+' '+str(max_r)+' '+str(Rcut)+' '+str(situation)+' '+str(innerCut)+' '+str(outerCut)+' '+str(nonRadial)+' '+tmplabel
+            os.system('g++ sc_mn_FINAL.cpp gauss_legendre.c -o sc_mn_cluster -std=c++11 -lpthread -I'+homeRoot+'code/c -I'+homeRoot+'code/c/boost/config -L'+homeRoot+'multinest/MultiNest/lib -lmultinest')
+            outCommand = './sc_mn_cluster '+homeRoot+'pmnOld/mock/'+tmplabel+' '+str(alpha)+' '+str(delta)+' '+str(r_break)+' '+str(max_r)+' '+str(Rcut)+' '+str(situation)+' '+str(innerCut)+' '+str(outerCut)+' '+str(nonRadial)+' '+tmplabel
             #pdb.set_trace()
             os.system(outCommand)
 
@@ -310,7 +306,7 @@ def testCMN(numStars=1465,min_r=0.0,max_r=5.0,gamma=-0.22,alpha=1.67,delta=9.15,
             radiusM *= cm_in_pc
             R2dM *= cm_in_pc #in cm
         #read in actual stars
-        #actual = np.loadtxt(cRoot+'maser_mn_actual.dat')
+        #actual = np.loadtxt(homeRoot+'code/c/maser_mn_actual.dat')
             actual = np.loadtxt('stars_schodel_for_mock.dat')
             pOldM_act = actual[:,1]
             randex = np.random.randint(len(pOldM_act),size=len(radiusM))
@@ -321,7 +317,7 @@ def testCMN(numStars=1465,min_r=0.0,max_r=5.0,gamma=-0.22,alpha=1.67,delta=9.15,
 
     #pdb.set_trace()
         np.savetxt('stars_r'+label+'.dat',np.transpose([radius2d,radius]),delimiter=' ')
-        #np.savetxt(cRoot+'xy_pixels'+label+'.dat',np.transpose([xPIX,yPIX]),delimiter=' ')
+        #np.savetxt(homeRoot+'code/c/xy_pixels'+label+'.dat',np.transpose([xPIX,yPIX]),delimiter=' ')
 
 
 
@@ -334,8 +330,7 @@ def testCMN(numStars=1465,min_r=0.0,max_r=5.0,gamma=-0.22,alpha=1.67,delta=9.15,
         
 
 def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/priors.txt',numM=100,Cplot=True,
-                  r_gamma=1.0,r_alpha=2.0,r_delta=2.0,r_rbreak=0.5,r_cfact=0.3,cutAlpha=100.0,cutDelta=100.0,numbins=10,
-                  flag='for_posterNOW'):
+                  r_gamma=1.0,r_alpha=2.0,r_delta=2.0,r_rbreak=0.5,r_cfact=0.3,cutAlpha=100.0,cutDelta=100.0,numbins=10):
 
     priors = np.loadtxt(priorFile)
     gamma = np.array([])
@@ -348,12 +343,6 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
 
     r_values = [r_gamma,r_alpha,r_delta,r_rbreak,r_cfact]
 
-
-    #load posterior from real data
-    r_posterior = np.loadtxt(mnoutRoot+''+flag+'_.txt')
-    r_priors = np.loadtxt(mnoutRoot+''+flag+'_priors.txt')
-    
-    
     p_label=['gamma','alpha','delta','rbreak']
     axis_label = [r'$\gamma$ (Inner Slope)',r'$\alpha$ (Outer Slope)',r'$\delta$ (Sharpness)',r'$r_{break}$ (pc)']
     colors_plot = ['limegreen','k','grey']
@@ -361,7 +350,7 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
     for i in range(numM):
         i += 1
         
-        tmpMock = np.loadtxt(mnMockRoot+''+mockTag+'__'+str(i)+'.txt')
+        tmpMock = np.loadtxt(homeRoot+'pmnOld/mock/'+mockTag+'__'+str(i)+'.txt')
         tmpgamma = tmpMock[:,2]*(priors[0,1] - priors[0,0]) + priors[0,0]
         tmpalpha = tmpMock[:,3]*(priors[1,1] - priors[1,0]) + priors[1,0]
         tmpdelta = tmpMock[:,4]*(priors[2,1] - priors[2,0]) + priors[2,0]
@@ -429,7 +418,7 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
         py.plot([r_values[i],r_values[i]],ylim,color='r',linestyle='--',linewidth=3.0)
         ax.set_ylim(ylim)
         py.xlabel(axis_label[i])
-        py.savefig(plotRoot+''+mockTag+'_'+p_label[i]+'_post.png')
+        py.savefig(homeRoot+'plots/'+mockTag+'_'+p_label[i]+'_post.png')
         fig.clf()
 
     if (Cplot==True):
@@ -461,7 +450,7 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
         print ' '
         py.plot([r_values[4],r_values[4]],ylim,color='r',linestyle='--',linewidth=3.0)
         ax.set_ylim(ylim)
-        py.savefig(plotRoot+''+mockTag+'_'+'_cfactor_post.png')
+        py.savefig(homeRoot+'plots/'+mockTag+'_'+'_cfactor_post.png')
         fig.clf()
 
 
@@ -483,7 +472,7 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
             py.xlabel(axis_label[i])
             py.ylabel(axis_label[j])
             py.plot(r_values[i],r_values[j],color='r',marker='d',ms=10)
-            py.savefig(plotRoot+''+mockTag+'_'+p_label[i]+'_'+p_label[j]+'.png')
+            py.savefig(homeRoot+'plots/'+mockTag+'_'+p_label[i]+'_'+p_label[j]+'.png')
             print p_label[i]+' AND '+p_label[j]+' --------------------------'
             tmpdex = np.unravel_index(hist.argmax(),hist.shape)
             print p_label[i]
@@ -521,7 +510,7 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
             py.xlabel('C Factor')
             py.ylabel(axis_label[i])
             py.plot(r_values[4],r_values[i],color='r',marker='d',ms=10)
-            py.savefig(plotRoot+''+mockTag+'_'+p_label[i]+'_cfactor.png')
+            py.savefig(homeRoot+'plots/'+mockTag+'_'+p_label[i]+'_cfactor.png')
             print p_label[i]+' AND C FACTOR --------------------------'
             tmpdex = np.unravel_index(hist.argmax(),hist.shape)
             print p_label[i]
@@ -761,8 +750,6 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
                         ax.axes.xaxis.set_ticklabels([])
                     if (j == 0):
                         hist,bins,junk=py.hist(gamma,weights=weights,normed=1,bins=numbins*4,histtype='step',color='b')
-                        r_param = r_posterior[:,2]*(r_priors[0,1] - r_priors[0,0]) + r_priors[0,0]
-                        hjunk,bins,junk=py.hist(r_param,bins=bins,normed=1,weights=r_posterior[:,0],histtype='step',linestyle='dashed')
                         ylim=ax.get_ylim()
                         py.plot([r_gamma,r_gamma],ylim,color='r')
                         ylim=ax.get_ylim()
@@ -771,24 +758,18 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
                         py.ylabel('Posterior')
                     elif (j == 1):
                         hist,bins,junk=py.hist(delta,weights=weights,normed=1,bins=numbins*4,histtype='step',color='b')
-                        r_param = r_posterior[:,4]*(r_priors[2,1] - r_priors[2,0]) + r_priors[2,0]
-                        hjunk,bins,junk=py.hist(r_param,bins=bins,normed=1,weights=r_posterior[:,0],histtype='step',linestyle='dashed')
                         ylim=ax.get_ylim()
                         py.plot([r_delta,r_delta],ylim,color='r')
                         ax.set_ylim(ylim)
                         py.xlim(dxlim)
                     elif (j == 2):
                         hist,bins,junk=py.hist(rbreak,weights=weights,normed=1,bins=numbins*4,histtype='step',color='b')
-                        r_param = r_posterior[:,5]*(r_priors[3,1] - r_priors[3,0]) + r_priors[3,0]
-                        hjunk,bins,junk=py.hist(r_param,bins=bins,normed=1,weights=r_posterior[:,0],histtype='step',linestyle='dashed')
                         ylim=ax.get_ylim()
                         py.plot([r_rbreak,r_rbreak],ylim,color='r')
                         ax.set_ylim(ylim)
                         py.xlim(rxlim)
                     elif (j == 3):
                         hist,bins,junk=py.hist(alpha,weights=weights,normed=1,bins=numbins*4,histtype='step',color='b')
-                        r_param = r_posterior[:,3]*(r_priors[1,1] - r_priors[1,0]) + r_priors[1,0]
-                        hjunk,bins,junk=py.hist(r_param,bins=bins,normed=1,weights=r_posterior[:,0],histtype='step',linestyle='dashed')
                         ylim=ax.get_ylim()
                         py.plot([r_alpha,r_alpha],ylim,color='r')
                         py.xlabel(r'$\alpha$ (Outer Slope)')
@@ -797,7 +778,7 @@ def plotMockParam(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mo
                         ytmp[0].label1.set_visible(False)
                         xtmp = ax.yaxis.get_major_ticks()
                         xtmp[0].label1.set_visible(False)
-    py.savefig(plotRoot+''+mockTag+'_'+'pyramid.eps',format='eps',dpi=1000)
+    py.savefig(homeRoot+'plots/'+mockTag+'_'+'pyramid.eps',format='eps',dpi=1000)
     py.clf()
     py.close('all')
 
@@ -885,7 +866,7 @@ def getContourLevels(probDist,percLevels=[.997,.95,.6827]):
 
 
 def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/priors.txt',numM=100,
-                  r_gamma=1.0,r_alpha=2.0,r_delta=2.0,r_rbreak=0.5,r_cfact=0.3,g_error=0.5,significance=1):
+                  r_gamma=1.0,r_alpha=2.0,r_delta=2.0,r_rbreak=0.5,r_cfact=0.3,significance=1):
     
     priors = np.loadtxt(priorFile)
     gamma = np.array([])
@@ -896,16 +877,15 @@ def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/pri
     weights = np.array([])
 
     r_values = [r_gamma,r_alpha,r_delta,r_rbreak]#,r_cfact]
-    recover = np.zeros([5,numM])
-    ge_recover = 0
-    centroids = np.zeros([5,numM])
+    recover = np.zeros([5,100])
+    centroids = np.zeros([5,100])
     
     #    p_label=['gamma','alpha','delta','rbreak']
     #axis_label = [r'$\gamma$ (Inner Slope)',r'$\alpha$ (Outer Slope)',r'$\delta$ (Sharpness)',r'$r_{break}$ (pc)']
     #colors_plot = ['limegreen','k','grey']
     
     for i in range(numM):
-        tmpMock = np.loadtxt(mnMockRoot+''+mockTag+'__'+str(i+1)+'.txt')
+        tmpMock = np.loadtxt(homeRoot+'pmnOld/mock/'+mockTag+'__'+str(i+1)+'.txt')
         tmpweights = tmpMock[:,0]/np.sum(tmpMock[:,0])
         
         for j in range(4):
@@ -917,8 +897,6 @@ def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/pri
     
             if ((lower[significance-1] <= r_values[j]) & (r_values[j] <= higher[significance-1])):
                 recover[j,i] += 1.0
-            if ((j==0) & ((r_gamma - g_error) <= center) & ((r_gamma + g_error) >= center)):
-                ge_recover += 1
     
     print ' '
     print 'Percent recovered:'
@@ -927,8 +905,6 @@ def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/pri
     print 'Delta: '+str(np.sum(recover[2,:])/float(numM))
     print 'R_break: '+str(np.sum(recover[3,:])/float(numM))
     #print 'C fact: '+str(np.sum(recover[4,:])/float(numM))
-    print ''
-    print 'Centroid gamma within '+str(r_gamma)+' +/- '+str(g_error)+' : '+str(ge_recover/float(numM))
 
     py.clf()
     py.figure(figsize=(10,7))
@@ -940,7 +916,7 @@ def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/pri
     py.xlabel('Centroid value of $\gamma$')
     py.ylabel('Normalized Frequency')
     py.title('$\gamma_{true}$ = '+str(r_gamma))
-    py.savefig(plotRoot+'centerGamma_'+mockTag+'.png')
+    py.savefig(homeRoot+'plots/centerGamma_'+mockTag+'.png')
     py.clf()
 
     py.figure(figsize=(10,7))
@@ -952,7 +928,7 @@ def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/pri
     py.xlabel('Centroid value of $r_{break}$')
     py.ylabel('Normalized Frequency')
     py.title('Break Radius$_{true}$ = '+str(r_rbreak))
-    py.savefig(plotRoot+'centerBreakr_'+mockTag+'.png')
+    py.savefig(homeRoot+'plots/centerBreakr_'+mockTag+'.png')
     py.clf()
     
     #make 2 plots in one image
@@ -986,7 +962,7 @@ def percCon(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/pri
                 #else:
 #ax.axes.yaxis.set_ticklabels([])
 
-    py.savefig(plotRoot+'center_'+str(mockTag)+'_gamma_and_cfact.png')
+    py.savefig(homeRoot+'plots/center_'+str(mockTag)+'_gamma_and_cfact.png')
     py.clf()
     py.close('all')
 
@@ -1000,7 +976,7 @@ def rBreak3LL(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/pmnOld/mock/p
     priors = np.loadtxt(priorFile)
 
     for i in range(numM):
-        tmpMock = np.loadtxt(mnMockRoot+''+mockTag+'__'+str(i+1)+'.txt')
+        tmpMock = np.loadtxt(homeRoot+'pmnOld/mock/'+mockTag+'__'+str(i+1)+'.txt')
         tmpweights = tmpMock[:,0]/np.sum(tmpMock[:,0])
         tmprbreak = tmpMock[:,5] * (priors[3,1] - priors[3,0]) + priors[3,0]
 
@@ -1083,7 +1059,7 @@ def centroidAll(mockTag=['g0.67_a2_d2_b0.5_c0.3','g1.5_a2_d2_b0.5_c0.3','g1_a2_d
                 #else:
 #ax.axes.yaxis.set_ticklabels([])
 
-    py.savefig(plotRoot+'center_ALL_gamma_rbreak_cfact.png')
+    py.savefig(homeRoot+'plots/center_ALL_gamma_rbreak_cfact.png')
     py.clf()
     py.close('all')
 
@@ -1156,7 +1132,7 @@ def plotsPaper2017Mock(mockTag='g1_a2_d2_b0.5_c0.3',priorFile='/u/schappell/clus
                 #else:
 #ax.axes.yaxis.set_ticklabels([])
 
-    py.savefig(plotRoot+''+str(mockTag)+'_gamma_rbreak_cfact.png')
+    py.savefig(homeRoot+'plots/'+str(mockTag)+'_gamma_rbreak_cfact.png')
     py.clf()
     py.close('all')
 

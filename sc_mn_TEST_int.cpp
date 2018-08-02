@@ -11,6 +11,7 @@
 #include <float.h>
 #include "multinest.h"
 #include "gauss_legendre.h"
+#include "integrator.hpp"
 //#include "sc_mn_lib.h"
 #include "ez_thread.hpp"
 //#include "gsl/gsl/gsl_integration.h"
@@ -18,7 +19,7 @@
 #include <iomanip>
 #include <boost/config/user.hpp>
 #include <boost/math/special_functions/erf.hpp>
-#include <boost/numeric/quadrature/adaptive.hpp>
+//#include <boost/numeric/quadrature/adaptive.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -33,11 +34,11 @@ using std::ios;
 using std::string;
 using std::stoi;
 using std::endl;
-using namespace boost::numeric;
+//using namespace boost::numeric;
 
 const double PI = 3.14159265358979;
-const double mass = 3.958e6; //Ghez 2008
-const double dist = 7787.0; //Ghez 2008
+const double mass = 4.07e6; //Ghez 2008
+const double dist = 7960.0; //Ghez 2008
 const double G = 6.6726e-8;
 const double msun = 1.99e33;
 const double sec_in_yr = 3.1557e7;
@@ -50,7 +51,7 @@ const double as_to_km = dist * cm_in_au / (1e5);
 const double GM = G * mass* msun;
 
 std::mutex mutex2;
-int NThreads = 14;
+int NThreads = 1;
 
 //define limits of priors
 double min_g = -3.0;
@@ -103,10 +104,11 @@ double density_intR(double Rprime, void* data)
 
 double density_intZ(double Zprime, void* data)
 {
-  int iii = *(int *)data;
-  return fabs(dxy*dxy*pow((Xgcows[iii]*Xgcows[iii] + Ygcows[iii]*Ygcows[iii] + Zprime*Zprime)/(brmodv*brmodv),(gmodv/-2.0))*
-	      pow((1.0+pow((sqrt(Xgcows[iii]*Xgcows[iii] + Ygcows[iii]*Ygcows[iii] + Zprime*Zprime)/brmodv),demodv)),
-		  ((gmodv-almodv)/demodv)));
+//int iii = *(int *)data;
+  //return fabs(dxy*dxy*pow((Xgcows[iii]*Xgcows[iii] + Ygcows[iii]*Ygcows[iii] + Zprime*Zprime)/(brmodv*brmodv),(gmodv/-2.0))*
+	//      pow((1.0+pow((sqrt(Xgcows[iii]*Xgcows[iii] + Ygcows[iii]*Ygcows[iii] + Zprime*Zprime)/brmodv),demodv)),
+	//	  ((gmodv-almodv)/demodv)));
+    return Zprime*Zprime;
 }
 
 //double density_intZBLAH(double Zprime, void *data)
@@ -130,15 +132,15 @@ double pos_int(double ax, void* data)
 double star_likeZ(double z0modv, void* data)
 {
   int iii = *(int *)data;
-  if (arv[iii] < 0.0)
-  {
-    amodv[iii] = -1.0*GM*r2dv[iii] / pow((sqrt(r2dv[iii]*r2dv[iii] + z0modv*z0modv)),3.0);
-    like_returnv[iii] = exp(-1.0*(arv[iii]-amodv[iii])*(arv[iii]-amodv[iii])/(2.0*arve[iii]*arve[iii]));
-  }
-  else
-  {
-      like_returnv[iii] = 1.0;
-    }
+  //if (arv[iii] < 0.0)
+  //{
+  //  amodv[iii] = -1.0*GM*r2dv[iii] / pow((sqrt(r2dv[iii]*r2dv[iii] + z0modv*z0modv)),3.0);
+  //  like_returnv[iii] = exp(-1.0*(arv[iii]-amodv[iii])*(arv[iii]-amodv[iii])/(2.0*arve[iii]*arve[iii]));
+  //}
+  //else 
+  //{
+  like_returnv[iii] = 1.0;
+  //    }
 
   like_returnv[iii] *= pow((1.0+pow((sqrt(r2dv[iii]*r2dv[iii]+z0modv*z0modv)/brmodv),demodv)),((gmodv-almodv)/demodv));
   like_returnv[iii] *= pow((r2dv[iii]*r2dv[iii]+z0modv*z0modv)/(brmodv*brmodv),(gmodv/-2.0));
@@ -193,6 +195,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 
   if (nonRadial > 0)
     {
+        cout << "Gamma " << gmodv << endl;
       ez_thread(threadnum, NThreads)
       {
 	for(int i=threadnum; i<num_gcows; i+=NThreads)
@@ -207,7 +210,14 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 		//double tmpDen = gauss_legendre(100,density_intZBLAH,NULL,0.0,max_Zv);
 		//double tmpDen, result_error;
 		//quadrature::adaptive().relative_accuracy(1e-5).absolute_accuracy(1e-7)(density_intZBLAH,0.0,max_Zv,tmpDen,result_error);
-		rho_gcows[iii] = gauss_legendre(100,density_intZ,&iii,0.0,Zmax_gcows[iii]);
+        Rgcows[iii] += 1.0e18;
+		rho_gcows[iii] = gauss_legendre(100,density_intZ,&iii,0.0,1.0);
+        cout << "Proj R " << Rgcows[iii] << endl;
+        cout << "Rho GCOWS " << rho_gcows[iii] << endl;
+        integrator::QuadIntegral inti(1.0e-6,1000);
+        auto func = [&](double xpp){return density_intZ(xpp,&iii);};
+        double tmp = inti.RombInt(func,0.0,1.0);
+        cout << "W/ new integrator " << tmp << endl;
 		if (rho_gcows[iii] <= 0.0)
 		  {
 		    cout << "Integration problem with GCOWS density norm" << endl;
@@ -220,7 +230,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 		//blahDex += 1.0;
 		//density_gcowsv += rho_gcows[iii];
 		//mutex2.unlock();
-          }
+	      }
 	  }
       };
       for (auto &&elem : rho_gcows)
@@ -258,7 +268,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 	  //cout << "norm pos " << norm_posv[iii] << endl;
 	  //cout << "Density norm" << density_normv << endl;
 	  //cout << "prob old " << pOldv[iii] << endl;
-	  starlikev[iii] *= cmodv / (density_normv * norm_posv[iii]);
+	  starlikev[iii] *= cmodv / (density_normv);
 	  //mutex.lock();
 	  //double tmpvalue = pOldv[iii] * log(starlikev[iii]);
 	  //if(tmpvalue < -1e20){tmpvalue=0.0;}
@@ -553,14 +563,14 @@ int main(int argc, char *argv[])
 	
   int fb = 1;// need feedback on standard output?
 	
-  int resume = 0;// resume from a previous job?
+  int resume = 1;// resume from a previous job?
 	
   int outfile = 1;// write output files?
 	
   int initMPI = 1;// initialize MPI routines?, relevant only if compiling with MPI
 		  // set it to F if you want your main program to handle MPI initialization
 	
-  double logZero = -1E100;// points with loglike < logZero will be ignored by MultiNest
+  double logZero = -1E20;// points with loglike < logZero will be ignored by MultiNest
 	
   int maxiter = 0;// max no. of iterations, a non-positive value means infinity. MultiNest will terminate if either it 
 		  // has done max no. of iterations or convergence criterion (defined through tol) has been satisfied

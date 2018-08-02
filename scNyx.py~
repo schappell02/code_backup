@@ -1,0 +1,486 @@
+from gcwork import objects
+import sc_starset as starset
+#import sc_accel_class as acc
+#from gcwork import util
+#from gcwork import orbits
+import sc_young as young
+#from pysqlite2 import dbapi2 as sqlite
+from sqlite3 import dbapi2 as sqlite
+import MySQLdb as mysqldb
+import scipy
+import pyfits
+from scipy import stats
+from scipy import special
+from scipy import integrate
+from gcwork import starTables
+import pickle
+import nmpfit_sy
+import asciidata, os, sys, pickle
+import nmpfit_sy2 as nmpfit_sy
+#from pylab import *
+import numpy as np
+#import pylab as py
+import math
+#import histNofill
+#import matplotlib.axes3d as p3
+import pdb
+import time
+import scipy.optimize as opter
+from scipy.optimize import fsolve
+from scipy.optimize import minimize
+from matplotlib.ticker import ScalarFormatter 
+import pymultinest
+import datetime
+import time
+import threading
+from astropy.stats import LombScargle
+# Several functions were taken from:
+# /ghezgroup/code/python/gcwork/polyfit/accel.py,
+# velocity.py and residuals.py, written by JLu.
+
+root = '/g/ghez/align/'
+home='/u/pi/'
+
+pi = math.pi
+
+# Mass and Ro from S0-2 - Ghez et al. 2008, Anna Boehle up to 2013
+mass = 4.07e6 #3.93e6
+masse = 0.6e6 #0.19e6
+dist = 7960.0 #7.84e3
+#diste = 0.14e3
+G = 6.6726e-8
+msun = 1.99e33
+GM = G * mass * msun
+mass_g = mass * msun
+masse_g = masse * msun
+sec_in_yr = 3.1557e7
+cm_in_au = 1.496e13
+cm_in_pc = 3.086e18
+km_in_pc = 3.086e13
+au_in_pc = 206265.0
+asy_to_kms = dist * cm_in_au / (1e5 * sec_in_yr)
+as_to_km = dist * cm_in_au / (1e5)
+density0 = 3.2e4
+density0_g = 3.2e4 * msun
+density0e = 1.3e4
+density0e_g = density0e * msun
+GM_as_yr = GM * sec_in_yr**2 * 1e-15 / as_to_km**3
+
+def outLombScargle(label='',min_p=1.0e-3,max_p=1.0e1):
+    #min and max period in YEARS
+    min_f = 2.0*pi / max_p
+    max_f = 2.0*pi / min_p
+
+    RV = np.loadtxt('/u/schappell/'+label+'date_vz_err.dat')
+    date = RV[:,0]
+    vz = RV[:,1]
+    vzerr = RV[:,2]
+    
+    frequency,power = LombScargle(date,vz,vzerr).autopower(minimum_frequency=min_f,maximum_frequency=max_f)
+
+    period = 2.0*pi/frequency
+
+    np.savetxt('/u/schappell/'+label+'LS_period_power.dat',np.transpose([period,power]),delimiter=' ')
+
+
+
+
+class RVstar(object):
+    """
+    For given star:RV, error, dates, number of frames, field, mag, r2d, and prob of being young
+
+    vz - np array of radial velocities in km/s, taken from database, only consider those with errors
+    vzerr - np array of error in radial velocities in km/s
+    date - np array of dates in years of radial velocity measurements
+    frames - np array of number of frames in given observation
+    name - name of star given
+    fieldarray - np array of field star was observed in
+    field - field where star was most recently observed
+    mag - K' magnitude of star
+    r2d - projected distance from Sgr A* in arcsec
+    yng - star's probability of being early-type
+
+    plotRV - plots w/ errorbars the RV measurements of given star, set plotFig to False
+             to have figure open on screen as opposed to being saved
+
+    """
+    def __init__(self, sname):
+        self.vz=np.array([])
+        self.vzerr=np.array([])
+        self.date=np.array([])
+        self.fieldarray=np.array([])
+        self.frames=np.array([])
+        self.name = sname
+        self.mag = -1.0
+
+        #connection to online database
+        database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+        cur = database.cursor()
+
+        #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+        #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+        #cur = connection.cursor()
+        cur.execute("SELECT ddate, vlsr, vz_err,field,nframes FROM spectra WHERE name='%s'"%sname)
+        for row in cur:
+            try:
+                if ((row[2] > 0.0) & (row[1] != None) & (row[2] != None)):
+                    self.vzerr=np.append(self.vzerr,np.float(row[2]))
+                    self.vz=np.append(self.vz,np.float(row[1]))
+                    self.date=np.append(self.date,float(row[0]))
+                    self.fieldarray=np.append(self.fieldarray,row[3])
+                    self.field=row[3]
+                    self.frames=np.append(self.frames,row[4])
+            except:
+                pass
+            
+        #connection = sqlite.connect(dbfile)
+        #cur = connection.cursor()
+
+        
+        cur = database.cursor()
+        try:
+            cur.execute("SELECT probYngSimPrior FROM unknownSims WHERE name='%s'" %(sname))
+            for row in cur:
+                self.yng = np.float(row[0])
+
+        except:
+            pass
+
+        #connection = sqlite.connect(dbfile)
+        #cur = connection.cursor()
+        cur = database.cursor()
+        self.cnt = len(self.vzerr)
+
+        cur.execute("SELECT young,old,kp,r2d,x,y FROM stars WHERE name='%s'" %(sname))
+        for row in cur:
+            self.mag=row[2]
+            self.r2d=row[3]
+            self.x=row[4]
+            self.y=row[5]
+            self.max_az = round((GM * 1.0e-5 * sec_in_yr / (row[3]*dist*cm_in_au)**2),2)
+            self.max_vz = round(sqrt(GM * 1.0e-5 * sec_in_yr / (row[3]*dist*cm_in_au)),2)
+            if ((row[0] == 'T') | (row[1] == 'F')):
+                self.yng = 1.0
+            elif ((row[0] == 'F') | (row[1] == 'T')):
+                self.yng = 0.0
+
+        if ((sname == 'S0-38') | (sname == 'S0-49')):
+            self.yng = 0.0
+        if (sname=='S0-32'):
+            self.yng = 1.0
+
+        try:
+            cur = database.cursor()
+            cur.execute("SELECT t0_spectra,vz,vz_err FROM bartko2009 WHERE ucla_name='%s'" %(sname))
+            for row in cur:
+                self.b09_vz = row[1]
+                self.b09_vzerr = row[2]
+                self.b09_date = row[0]
+        except:
+            print str(sname)+' does not have a RV in Bartko 2009'
+        #Read in disk probabilities
+        disk_names = np.loadtxt('/u/schappell/diskmembers.dat',usecols=(0,),dtype='|S15')
+        disk_prob = np.loadtxt('/u/schappell/diskmembers.dat',delimiter='&',usecols=(12,))
+        for i in range(len(disk_names)):
+            if (str(sname)==str(disk_names[i])):
+                self.diskProb = disk_prob[i]
+
+
+    def appendRV(self,addRV,addRVerr,addDate):
+        self.vz = np.append(self.vz,addRV)
+        self.vzerr = np.append(self.vzerr,addRVerr)
+        self.date = np.append(self.date,addDate)
+
+    def accel(self,wBartko=True):
+        if ((len(self.vz) >= 2) | ((wBartko==True) & (hasattr(self,'b09_vz')))):
+            self.az = np.array([])
+            self.azerr = np.array([])
+            tmpvz = np.append(self.vz,[])
+            tmpvzerr = np.append(self.vzerr,[])
+            tmpdate = np.append(self.date,[])
+            if (wBartko == True):
+                try:
+                    tmpvz = np.append(tmpvz,self.b09_vz)
+                    tmpvzerr = np.append(tmpvzerr,self.b09_vzerr)
+                    tmpdate = np.append(tmpdate,self.b09_date)
+                except:
+                    print self.name+' does not have a RV in Bartko 2009'
+            adex = np.argsort(tmpdate)
+            self.binary_cand = False
+            for i in range(len(tmpdate)-1):
+                for ii in np.arange(i+1,len(tmpdate),1):
+                    j = adex[i]
+                    jp = adex[ii]
+                    self.az = np.append(self.az,(tmpvz[jp]-tmpvz[j])/(tmpdate[jp]-tmpdate[j]))
+                    self.azerr = np.append(self.azerr,sqrt(tmpvzerr[jp]**2+tmpvzerr[j]**2)/(tmpdate[jp]-tmpdate[j]))
+                    if ((self.az[-1] < -1.0*(self.max_az+self.azerr[-1])) | (self.az[-1] > (self.max_az+self.azerr[-1]))):
+                        print self.name+' has accel in z between dates '+str(tmpdate[j])+' and '+str(tmpdate[jp])+' larger than az_max'
+                        print str(self.az[-1])+' +/- '+str(self.azerr[-1])+' km/s/yr'
+                        #print 'Sigma: '+str(round(abs(abs(self.az[-1])-self.max_az)/self.azerr[-1],2))+'     (|az - az_max|/az_err)'
+                        self.binary_cand = True
+            for i in range (len(self.az)-1):
+                for j in np.arange(i+1,len(self.az),1):
+                    if (abs(self.az[i] - self.az[j]) > (self.azerr[i]+self.azerr[j])):
+                        print self.name+' has accelerations that are NOT consistent'
+                        break
+                    
+
+            self.ext_mass = np.fabs(self.az)*1.0e5*(self.r2d*dist*cm_in_au)**2/(sec_in_yr*G*msun) #in solar masses
+            self.ext_mass -= mass #subtract out Sgr A*
+            self.EM_err = self.azerr*1.0e5*(self.r2d*dist*cm_in_au)**2/(sec_in_yr*G*msun)
+            
+            maxdex = np.argmax(np.fabs(self.az))
+            print self.name
+            print 'Max a_z: '+str(round(self.az[maxdex],2))+' +/- '+str(round(self.azerr[maxdex],2))+' km/s/yr'
+            print 'Max a_z from Sgr A*: '+str(round(self.max_az,2))+' km/s/yr'
+            maxdex = np.argmax(self.ext_mass)
+            if ((self.ext_mass[maxdex] - self.EM_err[maxdex]) <= 0.0):
+                print 'Change in RV can be explained by Sgr A* and z=0 within error'
+                #self.binary_cand = True
+            else:
+               print 'Extended mass: %.2E +/- %.2E solar masses' %(Decimal(str(self.ext_mass[maxdex])),
+                                                                   Decimal(str(self.EM_err[maxdex])))
+               #self.binary_cand = False
+
+        else:
+            print 'Has less than 2 RV entries, extended mass cannot be calculated'
+            self.binary_cand = False
+
+
+
+
+    def bestFitLine(self,wBartko=True,maxErr=1.0e5):
+        edex = np.where(self.vzerr<=maxErr)[0]
+        use_vz = self.vz[edex]
+        use_vzerr = self.vzerr[edex]
+        use_date = self.date[edex]
+        if (wBartko==True):
+            try:
+                use_vz = np.append(use_vz,self.b09_vz)
+                use_vzerr = np.append(use_vzerr,self.b09_vzerr)
+                use_date = np.append(use_date,self.b09_date)
+            except:
+                pass
+        usedex = np.argsort(use_date)
+        use_date = use_date[usedex]
+        use_vz = use_vz[usedex]
+        use_vzerr = use_vzerr[usedex]
+        if (len(use_vz) > 2):
+            lsq_res = opter.leastsq(chi2_line,[self.max_az,use_vz[0]],args=(use_date,use_vz,use_vzerr),full_output=1)
+            coeff = lsq_res[0]
+            best_fit = use_date * coeff[0] + coeff[1]
+            residuals = use_vz - best_fit
+            red_chi2 = np.sum(residuals**2 / use_vzerr**2 / (len(use_date) - 2.0))
+            print 'Star: '+str(self.name)
+            print 'Mag: '+str(self.mag)
+            print 'R2d: '+str(self.r2d)+' arcsec'
+            print 'Prob Young: '+str(self.yng)
+            print 'Max a_z: '+str(self.max_az)+' km/s/yr'
+            print ''
+            print 'Best fit:'
+            print 'SLOPE: '+str(coeff[0])+' km/s/yr'
+            print 'Y intercept: '+str(coeff[1])+' km/s'
+            print 'Reduced Chi^2: '+str(red_chi2)
+
+
+            return coeff,use_vz,use_vzerr,use_date
+
+        else:
+            print 'Only 2 points or less, not enough to fit'
+
+
+    def bestFitLine_sin(self,guess=[30.0,10.0,0.0],maxErr=1.0e5,wBartko=True):
+        coeff,use_vz,use_vzerr,use_date=self.bestFitLine(plotFit=plotFit,wBartko=wBartko,maxErr=maxErr)
+        line_vz = use_date * coeff[0] + coeff[1]
+        line_res = use_vz - line_vz
+
+        if (len(use_vz) > 3):
+            lsq_res = opter.leastsq(chi2_sin,guess,args=(use_date,line_res,use_vzerr),full_output=1)
+            coeff_sin = lsq_res[0]
+            best_fit = use_date * coeff[0] + coeff[1] + coeff_sin[0] * np.sin(2.0*pi*coeff_sin[1] * use_date - coeff_sin[2])
+            residuals = use_vz - best_fit
+            red_chi2 = np.sum(residuals**2 / use_vzerr**2 / (len(use_date) - 3.0))
+
+            print ''
+            print 'Best fit SIN:'
+            print 'SIN AMP '+str(coeff_sin[0])+' km/s'
+            print 'PERIOD '+str(1.0/coeff_sin[1])+' years'
+            print 'Offset '+str(coeff_sin[2])+' radians'
+            
+            print 'Reduced Chi^2: '+str(red_chi2)
+
+        else:
+            print 'Only 3 or less points, not enough to fit sin'
+
+
+    
+    def toDat(self,wBartko=True,label=''):
+        use_vz = np.append(self.vz,[])
+        use_vzerr = np.append(self.vzerr,[])
+        use_date = np.append(self.date,[])
+        if (wBartko==True):
+            try:
+                use_vz = np.append(use_vz,self.b09_vz)
+                use_vzerr = np.append(use_vzerr,self.b09_vzerr)
+                use_date = np.append(use_date,self.b09_date)
+            except:
+                pass
+
+        np.savetxt('/u/schappell/'+label+'date_vz_err.dat',np.transpose([use_date,use_vz,use_vzerr]),delimiter=' ')
+
+
+    def mockObs(self,wBartko=True,m1=40.0,q=0.5,period=6.0/365.0,eccen=0.0,incl=90.0,offset=0.0,guess=[20.0,36.5,0.0],
+                amp_bounds=[-1000.0,1000.0],f_bounds=[0.1,1.0e4],offset_bounds=[0.0,3.15]):
+        #m1 is mass of larger one, in solar masses
+        #max RV measured from 2nd (smaller or equal mass) star
+        #offset and offset_sgr are offsets in sine motion of binary and in orbit around Sgr A*, in radians
+        #q = m1/m2
+        #period in years
+        #inclination and phi in degress, inclination is that of binary system to line of sight (90 = edge on)
+        #phi is inclination of binary's orbit around Sgr A*
+        #take R2d of actual star as R2d of mock binary 
+
+       # self.period = period ; self.m1 = m1 ; self.m2 = q * m1 ; self.q = q ; self.e = eccen ; self.i = incl ; self.offset = offset
+        #self.phi = phi ; self.offset_sgr = offset_sgr
+
+        period_s = period * sec_in_yr
+        incl_rad = incl * pi / 180.0
+        m1_g = m1 * msun
+        #phi_rad = phi * pi / 180.0
+        
+        #r3d_cm = self.r2d * dist * cm_in_au / math.cos(phi_rad)
+        #self.r3d_pc = r3d_cm / cm_in_pc
+        #self.r3d_as = r3d_cm / dist / cm_in_au
+        amp = (2.0*pi*G/(period_s*(m1_g+m1_g*q)**2))**(1.0/3.0) * m1_g * math.sin(incl_rad) / 1.0e5 #in km/s
+        #amp_sgr = math.sqrt(GM/r3d_cm) * np.sin(phi_rad) / 1.0e5 #in km/s
+        #period_sgr = 2.0 * pi * r3d_cm**(3.0/2.0) / math.sqrt(GM) / sec_in_yr
+
+        #self.amp = amp ; self.amp_sgr = amp_sgr ; self.period_sgr = period_sgr
+
+        use_vzerr = np.append(self.vzerr,[])
+        use_date = np.append(self.date,[])
+        if (wBartko==True):
+            try:
+                use_vzerr = np.append(use_vzerr,self.b09_vzerr)
+                use_date = np.append(use_date,self.b09_date)
+            except:
+                pass
+
+        print ''
+        num_mock = raw_input("How many RV obs would you like to add? ") ; num_mock = int(num_mock)
+        mock_date = np.zeros(num_mock)
+
+        for i in range(num_mock):
+            if (i==0):
+                first_date = raw_input("When is the first new observation (enter year in decimal)? ")
+                mock_date[0] = float(first_date)
+            else:
+                tmp_diff = raw_input("What is difference between last and next observation (enter years in decimal)? ")
+                mock_date[i] = mock_date[i-1] + float(tmp_diff)
+
+        mock_vzerr = raw_input("What is the error on the RV measurement(s) (in km/s)? ")
+        mock_vzerr = np.zeros(len(mock_date)) + float(mock_vzerr)
+        #self.mock_vzerr = mock_vzerr ; self.mock_date = mock_date
+
+        use_date = np.append(use_date,mock_date) ; use_vzerr = np.append(use_vzerr,mock_vzerr)
+
+        phase = (use_date * 2.0 * pi / period) + offset #in radians
+        #phase_sgr = (use_date * 2.0 * pi / period_sgr) + offset #in radians
+        vzmock=np.zeros(len(use_date))
+        for i in range(len(use_date)):
+            #true_val = amp * np.sin(phase[i])*np.sqrt(1.0+eccen*np.cos(phase[i])) + amp_sgr * np.sin(phase_sgr[i])
+            true_val = amp * np.sin(phase[i])*np.sqrt(1.0+eccen*np.cos(phase[i]))
+            vzmock[i] = np.random.normal(true_val,use_vzerr[i])
+        #self.phase = phase ; self.phase_sgr = phase_sgr ; self.vzmock = vzmock
+
+
+        #lsq_res = opter.leastsq(chi2_line,[self.max_az,vzmock[0]],args=(use_date,vzmock,use_vzerr),full_output=1)
+        #coeff = lsq_res[0]
+        #best_fit = use_date * coeff[0] + coeff[1]
+        #residuals = vzmock - best_fit
+        #red_chi2 = np.sum(residuals**2 / use_vzerr**2 / (len(use_date) - 2.0))
+        #print ' '
+        #print 'Star: '+str(self.name)
+        #print 'Mag: '+str(self.mag)
+        #print 'R2d: '+str(self.r2d)+' arcsec'
+        #print 'Prob Young: '+str(self.yng)
+        #print 'Max a_z: '+str(self.max_az)+' km/s/yr'
+        #print ''
+        #print 'Best fit:'
+        #print 'SLOPE: '+str(coeff[0])+' km/s/yr'
+        #print 'Y intercept: '+str(coeff[1])+' km/s'
+        #print 'Reduced Chi^2: '+str(red_chi2)
+        #print ' '
+        #az0 = GM * sec_in_yr * math.sin(phi_rad) / r3d_cm**2 / 1.0e5
+        #print 'Actual values:'
+        #print 'SLOPE: '+str(az0)+' km/s/yr'
+        #print 'Y intercept: '+str(amp_sgr)+' km/s'
+
+
+        if (len(vzmock) > 3):
+            #lsq_res = opter.leastsq(chi2_sin,guess,args=(use_date,residuals,use_vzerr),full_output=1)
+            lsq_res = minimize(chi2_sin,guess,method='nelder-mead',args=(use_date,vzmock,use_vzerr))
+            #coeff_sin = lsq_res[0]
+            coeff_sin = lsq_res.x
+            #best_fit_sin = use_date * coeff[0] + coeff[1] + (coeff_sin[0] * np.sin(2.0*pi*coeff_sin[1] * use_date - coeff_sin[2]))
+            best_fit_sin = coeff_sin[0] * np.sin(2.0*pi*coeff_sin[1] * use_date - coeff_sin[2])
+            residuals_sin = vzmock - best_fit_sin
+            red_chi2_sin = np.sum(residuals_sin**2 / use_vzerr**2 / (len(use_date) - 3.0))
+
+            print ''
+            print 'Best fit SIN:'
+            print 'SIN AMP '+str(coeff_sin[0])+' km/s'
+            print 'PERIOD '+str(1.0/coeff_sin[1])+' years'
+            print 'Offset '+str(coeff_sin[2])+' radians'
+            print 'Reduced Chi^2: '+str(red_chi2_sin)
+            print ' '
+            print 'Actual values:'
+            print 'SIN AMP '+str(amp)+' km/s'
+            print 'PERIOD '+str(period)+' years'
+            print 'Offset '+str(offset)+' radians'
+            
+        else:
+            print 'Have 3 or less observation points, not enough for sine fit'
+        #pdb.set_trace()
+
+
+        
+
+def chi2_line(constants, xvar, yvar, sigma):
+    slope, intercept = constants
+    chi2 = (yvar - (xvar*slope + intercept))**2 / sigma**2
+    return chi2
+
+
+def chi2_sin(constants, xvar, yvar, sigma,amp_bounds=[-1000.0,1000.0],f_bounds=[0.1,1.0e4],offset_bounds=[0.0,3.15]):
+    amp, frequency, offset = constants
+    try:
+        if ((amp_bounds[0] < amp < amp_bounds[1]) & (f_bounds[0] < frequency < f_bounds[1]) & (offset_bounds[0] < offset < offset_bounds[1])):
+            chi2 = (yvar - (amp*np.sin(2.0*pi*frequency*xvar + offset)))**2 / sigma**2
+        else:
+            chi2 = 1.0e100
+    except:
+        pdb.set_trace()
+    return chi2
+
+def chi2_sin_nyx(param,*needed):
+    date,observed,sigma = needed
+    value = np.array([])
+    for vals in param:
+        amp = vals[0]
+        period = vals[1]
+        offset = vals[2]
+        chi2 = (observed - (amp*np.sin(2.0*pi*date/period + offset)))**2 / sigma**2
+        value = np.append(value,chi2)
+
+    return value
+
+
+
+def chi2_line_sin(constants, xvar, yvar, sigma):
+    slope, intercept, amp, frequency, offset = constants
+    chi2 = (yvar - (xvar*slope + intercept + amp*np.sin(2.0 * pi * frequency * xvar + offset)))**2 / sigma**2
+    return chi2
+

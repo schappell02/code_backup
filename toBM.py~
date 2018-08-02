@@ -1,22 +1,13 @@
-#from gcwork 
-import objects
-#from gcwork 
-import starset
-import sc_accel_class as acc
-#from gcwork 
-import util
-#from gcwork 
-import orbits
-#from gcwork 
-import young
+from gcwork import objects
+from gcwork import starset
+from gcwork import util
+from gcwork import orbits
+from gcwork import young
 from pysqlite2 import dbapi2 as sqlite
 import scipy
 import pyfits
 from scipy import stats
-from scipy import special
-from scipy import integrate
-#from gcwork 
-import starTables
+from gcwork import starTables
 import pickle
 import nmpfit_sy
 import asciidata, os, sys, pickle
@@ -29,8 +20,7 @@ import histNofill
 #import matplotlib.axes3d as p3
 import pdb
 import scipy.optimize as opter
-from scipy.optimize import fsolve
-from matplotlib.ticker import ScalarFormatter 
+
 # Several functions were taken from:
 # /ghezgroup/code/python/gcwork/polyfit/accel.py,
 # velocity.py and residuals.py, written by JLu.
@@ -57,25 +47,16 @@ pi = math.pi
 
 # Mass and Ro from S0-2 - Ghez et al. 2008
 mass = 4.07e6
-masse = 0.6e6
 dist = 7960.0
 G = 6.6726e-8
 msun = 1.99e33
 GM = G * mass * msun
-mass_g = mass * msun
-masse_g = masse * msun
 sec_in_yr = 3.1557e7
 cm_in_au = 1.496e13
 cm_in_pc = 3.086e18
 km_in_pc = 3.086e13
 au_in_pc = 206265.0
 asy_to_kms = dist * cm_in_au / (1e5 * sec_in_yr)
-as_to_km = dist * cm_in_au / (1e5)
-density0 = 3.2e4
-density0_g = 3.2e4 * msun
-density0e = 1.3e4
-density0e_g = density0e * msun
-GM_as_yr = GM * sec_in_yr**2 * 1e-15 / as_to_km**3
 
 def plotVelocityMap(alnDir='13_08_21/',
                     align='align/align_d_rms_1000_abs_t', poly='polyfit_c/fit'):
@@ -135,9 +116,9 @@ def plotVelocityMap(alnDir='13_08_21/',
 
     
 
-def loadPop(alnDir='14_06_18/',
+def loadPop(alnDir='13_08_21/',
             align = 'align/align_d_rms_1000_abs_t', root_tmp='/g/ghez/align/',
-            poly='polyfit_nz/fit',points='points_nz/', starlist='all',to_debug=False):
+            poly='polyfit_c/fit',points='points_c/', starlist='yngstars'):
     """Load a specific population of stars.
 
     Loads align data, omitting stars (according to chosen starlist) 
@@ -166,9 +147,6 @@ def loadPop(alnDir='14_06_18/',
     yngstars = []
     names = [star.name for star in s.stars]
 
-
-#    print 'All the stars'
-#    print names
     for name in yng:
 	try:
 	    idx = names.index(name)
@@ -274,8 +252,7 @@ def loadPop(alnDir='14_06_18/',
     return s
 
 
-def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, root_tmp = '/g/ghez/align/', alnDir = '13_08_21/', 
-          chainsDir = 'efit/chains/'):
+def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, alnDir = '13_08_21/', chainsDir = 'efit/chains_S0-2_newRV2/'):
     """
     Need to run this function to update the errors in X and Y of a given star. There is an
     error in position and velocity of sgr* from S0-2's efit. This uncertainty affects
@@ -294,7 +271,7 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, root_tmp = '/g/ghez/ali
     """
 
     #Read in values for error in position and velocity of sgr*
-    origin_val = asciidata.open(root_tmp + alnDir + chainsDir + 'efit_summary.txt')
+    origin_val = asciidata.open('/g/ghez/align/13_08_21/' + chainsDir + 'efit_summary.txt')
     ori_x0e = origin_val[18][0]
     ori_y0e = origin_val[19][0]
     ori_vxe = origin_val[20][0]
@@ -320,11 +297,11 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, root_tmp = '/g/ghez/ali
 
 
 
-def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
-              align = 'align/align_d_rms_1000_abs_t', updateErr = True,radCut = 100.0,
-              poly='polyfit_nz/fit', points='points_nz/', sigma=3.0, polyj='polyfit_nzj/fit',
-              f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',outTolatex=False,outToAL=False,
-              starlist='all', plotSigAcc=False, magCut=22, nEpochs=14, verbose = True, likelihood=False):
+def histAccel(alnDir='13_08_21/',
+              align = 'align/align_d_rms_1000_abs_t', updateErr = True,
+              poly='polyfit_c/fit', points='points_c/', sigma=5.0,
+              f_test=True, pvalue=4.0, chainsDir = 'efit/chains_S0-2_newRV2/',
+              starlist='all', plotSigAcc=False, magCut=16, nEpochs=30):
     """
     Make a histogram of the accelerations in the radial/tangential,
     X/Y, and inline/perp. direction of motion. Also, the large outliers
@@ -355,11 +332,9 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 #    outdir = root + alnDir + 'plots/'
     outdir = home + 'plots/'
 
-    s = loadPop(root_tmp=root_tmp,alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
+    s = loadPop(alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
 
     names = s.getArray('name')
-#    print "stars that are in hist Accel:"
-#    print names
 
     # In arcsec, mas/yr, mas/yr^2
     x0 = s.getArray('x0')
@@ -376,84 +351,22 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     aye = s.getArray('aye')
     t0x = s.getArray('t0x')
     t0y = s.getArray('t0y')
-    xchi2r = s.getArray('xchi2r')
-    ychi2r = s.getArray('ychi2r')
         
     cnt = s.getArray('cnt')
     mag = s.getArray('mag')
 
-
-    #Load Jerk values
-    fitRoot = root_tmp + alnDir + polyj
-    fitFile = fitRoot + '.accelFormal'
-    t0File = fitRoot + '.t0'
-
-    _fit = asciidata.open(fitFile)
-    _t0 = asciidata.open(t0File)
-
-    jt0x = _t0[1].tonumpy()
-    jt0y = _t0[2].tonumpy()
-    jnames = _fit[0].tonumpy()
-    jx0 = _fit[1].tonumpy()
-    jvx = _fit[2].tonumpy()
-    jax = _fit[3].tonumpy()
-    jx = _fit[4].tonumpy()
-    jx0e = _fit[5].tonumpy()
-    jvxe = _fit[6].tonumpy()
-    jaxe = _fit[7].tonumpy()
-    jxe = _fit[8].tonumpy()
-    jxchi2 = _fit[9].tonumpy()
-#    jxq = _fit[10].tonumpy()
-
-    jy0 = _fit[11].tonumpy()
-    jvy = _fit[12].tonumpy()
-    jay = _fit[13].tonumpy()
-    jy = _fit[14].tonumpy()
-    jy0e = _fit[15].tonumpy()
-    jvye = _fit[16].tonumpy()
-    jaye = _fit[17].tonumpy()
-    jye = _fit[18].tonumpy()
-    jychi2 = _fit[19].tonumpy()
-#    jyq = _fit[20].tonumpy()
-
-#    jmag = np.zeros(len(jnames))
-#    for i in range(len(jnames)):
-#        try:
-#            jdex=names.index(jnames[i])
-#            jmag[i]=mag[jdex]
-#        except:
-#            jmag[i] = 0.0
-
-    #Some of these stars have jerk fits, if they do, use those fits
-#    for i in range(len(names)):
-#        try:
-#            jndex = np.where(jnames == names[i])
-#            x0[i] = jx0[jndex]
-#            y0[i] = jy0[jndex]
-#            x0e[i] = jx0e[jndex]
-#            y0e[i] = jy0e[jndex]
-#            vx[i] = jvx[jndex]
-#            vy[i] = jvy[jndex]
-#            vxe[i] = jvxe[jndex]
-#            vye[i] = jvye[jndex]
-#            ax[i] = jax[jndex]
-#            ay[i] = jay[jndex]
-#            axe[i] = jaxe[jndex]
-#            aye[i] = jaye[jndex]
-#        except:
-#            continue
     #Update errors in position
-
-
-    #pdb.set_trace()
+    if updateErr:
+        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, alnDir=alnDir, chainsDir = chainsDir)
 
     # Make an epochs cut
-    r = np.sqrt(x0**2 + y0**2)
-    idx = np.where((cnt > nEpochs) & (mag < magCut) & (r < radCut))[0]
+    idx = np.where((cnt > nEpochs) & (mag < magCut))[0]
     x0 = x0[idx]
     y0 = y0[idx]
     x0e = x0e[idx]
     y0e = y0e[idx]
+#    x0e = np.sqrt((x0e[idx])**2 + 0.8**2)
+#    y0e = np.sqrt((y0e[idx])**2 + 0.8**2)
     vx = vx[idx]
     vy = vy[idx]
     vxe = vxe[idx]
@@ -464,107 +377,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     aye = aye[idx]
     cnt = cnt[idx]
     mag = mag[idx]
-    xchi2r = xchi2r[idx]
-    ychi2r = ychi2r[idx]
-    t0x = t0x[idx]
-    t0y = t0y[idx]
     names = [names[nn] for nn in idx]
-
-    #for AG
-#    py.clf()
-#    pdb.set_trace()
-#    r = r[idx]
-#    ag1 = np.where((r < 1.7) & (cnt > 14))[0]
-#    ag2 = np.where((r < 1.7) & (cnt > 14) & (mag < 15.5))[0]
-#    co1 = plt.scatter(cnt,mag,facecolors='none',label='Entire Catalogue')
-#    co2 = py.scatter(cnt[ag1],mag[ag1],label='Projected Radius and Epochs Cut')
-#    py.scatter(mag[ag2],cnt[ag2],'ok')
-#    py.xlabel('Number Epochs')
-#    py.ylabel('K Mag')
-#    py.axis([0,60,22,8])
-#    py.legend((co1,co2),['Entire Catalogue','Proj. R + Epochs Cut'])
-#    py.show()
-#    pdb.set_trace()
-
-#    co1 = py.scatter(cnt[ag1],mag[ag1],facecolors='none',label='Projected Radius and Epcohs Cut')
-#    co2 = py.scatter(mag[ag2],cnt[ag2],'ok',label='+K Magnitude Cut')
-#    py.xlabel('Number Epochs')
-#    py.ylabel('K Mag')
-#    py.show()
-
-    #pdb.set_trace()
-
-
-    chiBins=py.arange(0.0,50,0.1)
-    py.clf()
-    py.hist(xchi2r,chiBins)
-    py.xlabel('Reduced X Chi^2')
-    py.ylabel('Number')
-    py.savefig('/u/schappell/distXchi2.png')
-
-    py.clf()
-    py.hist(ychi2r,chiBins)
-    py.xlabel('Reduced Y Chi^2')
-    py.ylabel('Number')
-    py.savefig('/u/schappell/distYchi2.png')
-
-    ###########
-    #
-    # F Test -- Accel or Velocity fit?
-    #
-    ###########
-    if f_test == True:
-        # Pass in the star names and run the F test
-        pass_f,xprob,yprob = run_f_test(names,pvalue,root_tmp,alnDir,align,poly,points,verbose=verbose)
-        pass_fj = run_fjerk_test(names,pvalue,root_tmp,alnDir,align,poly,points,verbose=verbose)
-    else:
-        pass_f = np.ones(len(names)) # check everything
-        pass_fj = np.ones(len(names))
-
-
-    for i in range(len(names)):
-        if ((str(names[i]) == 'S0-16') | (str(names[i]) == 'S0-17')):
-            pass_f[i] = 1
-            pass_fj[i] = 1
-            print 'S0-16 or S0-17 updated accel and jerk'
-            #pdb.set_trace()
-    idex = np.where(pass_fj ==1)[0]
-
-    pdb.set_trace()
-
-    # S0-16 and -17 have such a high inclination that it is being seen as a velocity, force the f test vel/acc to be acc
-
-    idex = np.where((pass_fj ==1) & (pass_f == 1))[0]
-
-    for i in idex:
-        jdex = np.where(jnames == names[i])
-        try:
-            x0[i] = jx0[jdex]
-            y0[i] = jy0[jdex]
-            x0e[i] = jx0e[jdex]
-            y0e[i] = jy0e[jdex]
-            vx[i] = jvx[jdex]
-            vy[i] = jvy[jdex]
-            vxe[i] = jvxe[jdex]
-            vye[i] = jvye[jdex]
-            ax[i] = jax[jdex]
-            ay[i] = jay[jdex]
-            axe[i] = jaxe[jdex]
-            aye[i] = jaye[jdex]
-            xchi2r[i] = jxchi2[jdex]/(cnt[i] - 4.0)
-            ychi2r[i] = jychi2[jdex]/(cnt[i] - 4.0)
-            t0x[i] = jt0x[jdex]
-            t0y[i] = jt0y[jdex]
-        except:
-            pass_fj[i] = 0 #star does not have jerk fit, set pass jerk F test to no 
-            print names[i]+' did not have jerk fit'
-#        ar[i] = jar[jdex]
-#        at[i] = jat[jdex]
-#        are[i] = jare[jdex]
-#        ate[i] = jate[jdex]
-#    sigmaR = ar/are
-#    sigmaT = at/ate
-
 
     # Get accelerations in the radial/tangential direction
     r = np.hypot(x0, y0)
@@ -577,67 +390,51 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
     ate =  np.sqrt(ate)
 
-
-    writeJLatex = np.where((pass_fj ==1) & (pass_f == 1) & (r < 1.0))[0]
-
-
-#    jr = np.hypot(jx0, jy0)
-#    jar = ((jax*jx0) + (jay*jy0)) / jr
-#    jat = ((jax*jy0) - (jay*jx0)) / jr
-#    jare =  (jaxe*jx0/jr)**2 + (jaye*jy0/jr)**2
-#    jare += (jy0*jx0e*jat/jr**2)**2 + (jx0*jy0e*jat/jr**2)**2
-#    jare =  np.sqrt(jare)
-#    jate =  (jaxe*jy0/jr)**2 + (jaye*jx0/jr)**2
-#    jate += (jy0*jx0e*jar/jr**2)**2 + (jx0*jy0e*jar/jr**2)**2
-#    jate =  np.sqrt(jate)
-
-#    fsp = np.where((r < 1.7) & (cnt >= 15))[0]
-#    print 'For star program:'
-#    print len(fsp)
-#    for i in fsp:
-#        print names[i]
-
-    py.clf()
-    tmpBins=py.arange(-15,15,0.5)
-    py.subplot(1,2,1)
-    py.hist(at/ate,tmpBins)
-    py.ylim([0,300])
-    py.xlabel('$\sigma_{T}$')
-    py.title('Original')
-
     if updateErr:
-        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, root_tmp=root_tmp, alnDir=alnDir, chainsDir = chainsDir)
-#        jx0e,jy0e,jvxe,jvye = nzErr(jx0e, jy0e, jvxe, jvye, jt0x, jt0y, jmag, alnDir=alnDir, chainsDir = chainsDir)
+#        atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17])
+#        deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
+       # atBins=np.array([9,13.39,14.32,15.19,15.44,15.64,15.86,16.265,18])
+       # deltaAt=np.array([1.455,2.227,3.4624,4.036,3.8197,4.7166,5.7052,5.7413])*1e-5
+#        are = np.sqrt(are**2 + (3.1585e-5)**2)
+#        ate = np.sqrt(ate**2 + (3.6118e-5)**2)
+#        are = np.sqrt(are**2 + (2.0e-4)**2)
+#        ate = np.sqrt(ate**2 + (1.0e-4)**2)
+#        atBins=np.array([9,11,12,13,14,15,16,17,18,19,20,23])
+#        deltaArr=np.array([3.5,71.0,58.0,210.0,300.0,650.0,700.0,1100.0,1900.0,2200.0,3000.0])*1e-6
+       # radBins=np.array([0.0,1.2267,1.9434,2.3978,2.9501,3.3867,3.8977,4.4208,6.5])
+       # deltaRa=np.array([3.6889,3.4419,2.6797,2.7718,2.6686,2.4569,1.2631,0.9888])*1e-5
+        
 
-    if updateErr:
-        atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17.1])
-        deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
-
+        #Finding the delta to add in quad to the error depending on the radius and mag, whichever one, radius or mag
+        #error is larger
         delta = mag*0.0
-
-
+#        for i in range(len(mag)):
+#            for j in range(len(deltaAt)):
+#                if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
+#                    delta[i]=deltaAt[j]
+#                    for k in range(len(deltaRa)):
+#                        if ((r[i] > radBins[k]) & (r[i] <= radBins[k+1])):
+#                            if deltaRa[k] > delta[i]:
+#                                delta[i]=deltaRa[k]
+        
+        magBins = np.array([9,14.32,15.44,15.86,18])
+        radBins = np.array([0.0,1.9434,2.9501,3.8977,6.5])
+#        deltaArr = np.array([[14.601,36.187,10.737,19.217],[24.742,21.776,35.729,13.194],[22.587,41.706,44.864,12.631],
+#                             [49.032,46.48,50.812,28.274]])*1e-6
+        deltaArr = np.array([[11.49,2.85,11.09,28.78],[22.64,15.93,37.53,5.35],[22.59,25.97,44.86,42.86],
+                             [49.43,51.14,6.54,28.28]])*1e-6
         for i in range(len(mag)):
-            for j in range(len(atBins)-1):
-                if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
-                    delta[i] = deltaArr[j]
-#        for i in range(len(jmag)):
-#            for j in range(len(atBins)-1):
-#                if ((jmag[i] > atBins[j]) & (jmag[i] <= atBins[j+1])):
-#                    jdelta[i] = deltaArr[j]                
+            for j in range(len(magBins)-1):
+                if ((mag[i] > magBins[j]) & (mag[i] <= magBins[j+1])):
+                    idxm = j
+            for p in range(len(radBins)-1):
+                if ((r[i] > radBins[p]) & (r[i] <= radBins[p+1])):
+                    idxr = p
+            delta[i] = deltaArr[idxm,idxr]
+#            print mag[i],r[i],delta[i]
 
         ate = np.sqrt(ate**2 + delta**2)
         are = np.sqrt(are**2 + delta**2)
-#        jate = np.sqrt(jate**2 + jdelta**2)
-#        jare = np.sqrt(jare**2 + jdelta**2)
-
-#    tmpBins=py.arange(-10,10,0.1)
-    py.subplot(1,2,2)
-    py.hist(at/ate,tmpBins)
-    py.xlabel('$\sigma_{T}$')
-    py.title('After')
-    py.ylim([0,300])
-    py.savefig('/u/schappell/plots/histatan.png')
-
 
     # Lets also do parallel/perpendicular to velocity
     v = np.sqrt(vx**2 + vy**2)
@@ -689,9 +486,6 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     ##########
     sigmaR = ar/are
     sigmaT = at/ate
- #   jsigmaR = jar/jare
- #   jsigmaT = jat/jate
-
     sigmaAll = concatenate([sigmaR, sigmaT])
     (ksdR, kspR) = stats.stats.kstest(sigmaR, 'norm', N=len(sigmaR))
     (ksdT, kspT) = stats.stats.kstest(sigmaT, 'norm', N=len(sigmaT))
@@ -702,6 +496,19 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     #print '\tCombo Acc. KS Prob. = %5.3f' % (kspA)
     print ''
 
+    ###########
+    #
+    # F Test -- Accel or Velocity fit?
+    #
+    ###########
+    if f_test == True:
+        # Pass in the star names and run the F test
+        pass_f = run_f_test(names,pvalue,alnDir,align,poly,points,verbose=True)
+        pass_fj = run_fjerk_test(names,pvalue,alnDir,align,poly,points,verbose=True)
+    else:
+        pass_f = np.ones(len(names)) # check everything
+        pass_fj = np.ones(len(names))
+
 
     def makePlots(val, acc, r, v, pass_f, pos, label):
         py.figure(1)
@@ -711,18 +518,17 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
         py.title(label)
 
 #        fmt = '%15s  %5.2f   %5.3f"  %8.3f mas/yr^2  %8.2f sigma  %2d epochs  %5s  %5s'
-        fmt = '%15s  %5.2f   %5.3f"  %8.3f mag/yr^2  %8.2f sigma  %2d epochs  %5s  %5s  %8.3f  %8.3f'
-        hdr = '%15s  %5s  %6s  %17s  %14s  %8s  %8s %8s %7s %7s  '
-        #hdr = '%15s  %5s  %6s  %17s  %14s  %17s  %14s  %8s  %8s %8s  %7s  %7s'
-        #fmt = '%15s  %5.2f   %5.3f"  %8.3f mas/yr^2  %8.2f sigma  %8.3f mas/yr^2  %8.2f sigma  %2d epochs  %5s  %5s  %8.3f  %8.3f'
+        fmt = '%15s  %5.2f   %5.3f"  %8.3f mag/yr^2  %8.2f sigma  %2d epochs  %5s  %5s'
+        hdr = '%15s  %5s  %6s  %17s  %14s  %8s  %8s %8s '
+
         if (label == 'Radial'):
             # Get significant radial accelerations (physical)
             py.figure(2)
             py.clf()
             py.subplots_adjust(wspace=0.0, hspace=0.2, left=0.12, right=0.88, top=0.9, bottom=0.1)
-            idx = (np.where((val < -sigma) & (cnt > nEpochs)))[0]
+            idx = (np.where((val < -sigma)))[0]
             print '%s Significant %s (physical) Accelerations' % (len(idx), label)
-            print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit','X PVal','Y PVal')
+            print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit')
             if len(idx) > 0:
                 for i in idx:
                     if pass_f[i] == 1:
@@ -733,7 +539,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                         jfit = 'Jrk'
                     elif pass_fj[i] == 0:
                         jfit = 'Acc'
-                    print fmt  % (names[i], mag[i], r[i], acc[i]*1e3, val[i], cnt[i], fit, jfit,xprob[i],yprob[i])
+                    print fmt  % (names[i], mag[i], r[i], acc[i]*1e3, val[i], cnt[i], fit, jfit)
                     py.subplot(1,2,1)
                     py.plot(r[i],val[i],'k.')
                     py.subplot(1,2,2)
@@ -763,12 +569,12 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 #                py.close(11)
 
             # Get significant unphysical accelerations (positive radial)
-            idx = (np.where((val > sigma) & (cnt > nEpochs)))[0]
+            idx = (np.where((val > sigma)))[0]
             print
             print '%s Significant Positive %s (unphysical) Accelerations' % \
                   (len(idx), label)
             print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)',
-                         'Nepochs', 'A/V Fit', 'J/A Fit','X PVal','Y PVal')
+                         'Nepochs', 'A/V Fit', 'J/A Fit')
             if len(idx) > 0:
                 for i in idx:
                     if pass_f[i] == 1:
@@ -779,7 +585,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                         jfit = 'Jrk'
                     elif pass_fj[i] == 0:
                         jfit = 'Acc'
-                    print fmt % (names[i], mag[i], r[i], acc[i]*1e3, val[i], cnt[i], fit, jfit,xprob[i],yprob[i])
+                    print fmt % (names[i], mag[i], r[i], acc[i]*1e3, val[i], cnt[i], fit, jfit)
                     py.figure(3)
                     py.plot(r[i],acc[i]*1e3,'k.')
 
@@ -800,10 +606,10 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 
         if (label == 'Tangential'):
             # Get significant unphysical accelerations (tangential)
-            idx = (np.where((np.abs(val) > sigma) & (cnt > nEpochs)))[0]
+            idx = (np.where((np.abs(val) > sigma)))[0]
             print
             print '%s Significant %s (unphysical) Accelerations' % (len(idx), label)
-            print hdr % ('Name','K','r (")', 'a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit','X PVal','Y PVal')
+            print hdr % ('Name','K','r (")', 'a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit')
             if len(idx) > 0:
                 for i in idx:
                     if pass_f[i] == 1:
@@ -814,7 +620,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                         jfit = 'Jrk'
                     elif pass_fj[i] == 0:
                         jfit = 'Acc'
-                    print fmt % (names[i], mag[i], r[i], acc[i]*1e3, val[i], cnt[i], fit, jfit,xprob[i],yprob[i])
+                    print fmt % (names[i], mag[i], r[i], acc[i]*1e3, val[i], cnt[i], fit, jfit)
                     py.figure(4)
                     py.plot(r[i],acc[i]*1e3,'k.')
 
@@ -897,75 +703,10 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     ##############################################################
     #SC added
     ##############################################################
-    hdr = '%15s  %5s  %6s  %17s  %14s  %17s  %14s  %8s  %8s %8s  %7s  %7s'
-    fmt = '%15s  %5.2f   %5.3f"  %8.3f mas/yr^2  %8.2f sigma  %8.3f mas/yr^2  %8.2f sigma  %2d epochs  %5s  %5s  %8.3f  %8.3f'
-#    idsig = (np.where((sigmaR < -sigma) & (np.abs(sigmaT) < sigma)))[0] #sig accel
-    idnp = (np.where(((sigmaR > sigma) | (np.abs(sigmaT) > sigma)) & (cnt > 23)))[0] #non physical accel
-#    writeLatex = (np.where((sigmaR < -sigma) & (np.abs(sigmaT) < sigma) & (pass_f == 1)))[0]
-    idsig = (np.where(((sigmaR < -22.0) | ((cnt > 24) & (sigmaR < -sigma))) & (np.abs(sigmaT) < sigma)))[0] #sig accel
-    writeLatex = (np.where((((sigmaR < -22.0) | ((cnt > 24) & (sigmaR < -sigma))) & (np.abs(sigmaT) < sigma) & (pass_f==1)) | ((pass_fj == 1) & (pass_f == 1) & (r < 1.0))))[0]
-#    for i in writeLatex:
-#        print names[i],sigmaR[i],sigmaT[i]
-
-
-    magB = np.zeros(len(deltaArr))
-    medB = np.zeros(len(deltaArr))
-    medA = np.zeros(len(deltaArr))
-    for i in range(len(deltaArr)):
-        magB[i] = (atBins[i] + atBins[i+1])/2.0
-        inhere = np.where((mag > atBins[i]) & (mag <= atBins[i+1]))[0]
-        medB[i] = median(ate[inhere])
-        medA[i] = median(ate[inhere])
-
-    
-    sig3 = np.delete(medA,4)
-    deleteMag = np.delete(magB,4)
-    deleteMag[0] = 9
-    deleteMag[6] = 18
-    py.clf()
-#    py.plot(magB,medB*1e6,'.',label='Before')
-#    py.plot(magB,deltaArr*1e6,'o',label='Delta')
-#    py.plot(magB,medA*1e6,'.',label='After')
-#    py.legend(loc=2)
-
-#    errpatch = np.array([[densityBin[0]-1.0,error_density[1],error_density[2]],error_density])
-    lowerErr = are*1e6
-    for i in range(len(lowerErr)):
-        if ((-1.0*ar[i]*1e6 - lowerErr[i]) < 1.0):
-            lowerErr[i] = -1.0*ar[i]*1e6 - 1.0
-
-
-    py.plot(deleteMag,sig3*1e6,label='Error')
-    py.errorbar(mag[writeLatex],ar[writeLatex]*1e6*(-1),yerr=np.array([lowerErr[writeLatex],are[writeLatex]*1e6]),fmt='.',label='Radial Accel')
-    py.legend(loc=2,numpoints=1)
-    py.yscale('log')
-    py.axis([9.0,18.0,8.,10000.])
-    py.xlabel('K Mag')
-    py.ylabel('Radial Acceleration ($\mu$as/yr$^2$)')
-    py.savefig('/u/schappell/sig3_sample.png')
-
-    #pdb.set_trace()
-
-#    sigmaR = ar/are
-#    py.clf()
-#    py.plot(cnt[writeLatex],sigmaR[writeLatex],'o')
-#    py.xlabel('Epochs (#)')
-#    py.ylabel('Radial Acceleration (sigma)')
-#    py.savefig('/u/schappell/sigrCnt.png')
-
-    py.clf()
-    toplot = (np.where(cnt > 24))[0]
-    py.errorbar(1e3*at[toplot],-1e3*ar[toplot],xerr=1e3*ate[toplot],yerr=1e3*are[toplot],fmt='.')
-    py.xlabel('Tan Accel (mas/yr^2)')
-    py.ylabel('Rad Accel (mas/yr^2)')
-    py.savefig('/u/schappell/plots/epochCut_ar_at.png')
-
-    py.clf()
-    toplot = (np.where(((sigmaR < -22.0) | ((cnt > 24) & (sigmaR < -sigma))) & (np.abs(sigmaT) < sigma)))[0]
-    py.errorbar(1e3*at[toplot],-1e3*ar[toplot],xerr=1e3*ate[toplot],yerr=1e3*are[toplot],fmt='.')
-    py.xlabel('Tan Accel (mas/yr^2)')
-    py.ylabel('Rad Accel (mas/yr^2)')
-    py.savefig('/u/schappell/plots/epochSigCut_ar_at.png')
+    hdr = '%15s  %5s  %6s  %17s  %14s  %17s  %14s  %8s  %8s %8s '
+    fmt = '%15s  %5.2f   %5.3f"  %8.3f mas/yr^2  %8.2f sigma  %8.3f mas/yr^2  %8.2f sigma  %2d epochs  %5s  %5s'
+    idsig = (np.where((sigmaR < -sigma) & (np.abs(sigmaT) < sigma)))[0] #sig accel
+    idnp = (np.where((sigmaR > sigma) | (np.abs(sigmaT) > sigma)))[0] #non physical accel
 
     py.figure(6)
     py.clf()
@@ -980,8 +721,6 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     py.legend()
     py.savefig(outdir + 'tan_rad.png')
 
-
-
 #    py.figure(7)
 #    py.clf()
 #    are_bins=[np.min(are),np.max(are),(np.max(are)-np.min(are))/18.]
@@ -989,7 +728,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 
     print
     print '%s SC Significant physical Accelerations' % (len(idsig))
-    print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)','a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit', 'X PVal', 'Y PVal')
+    print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)','a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit')
     if len(idsig) > 0:
         for i in idsig:
             if pass_f[i] == 1:
@@ -1000,12 +739,12 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                 jfit = 'Jrk'
             elif pass_fj[i] == 0:
                 jfit = 'Acc'
-            print fmt % (names[i], mag[i], r[i], ar[i]*1e3, sigmaR[i], at[i]*1e3, sigmaT[i], cnt[i], fit, jfit, xprob[i], yprob[i])
+            print fmt % (names[i], mag[i], r[i], ar[i]*1e3, sigmaR[i], at[i]*1e3, sigmaT[i], cnt[i], fit, jfit)
 
     idx = np.where((pass_f == 1) & (sigmaR <= 0.0))[0]
     print
     print '%s Pass F Test' % (len(idx))
-    print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)','a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit', 'X PVal', 'Y PVal')
+    print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)','a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit')
     if len(idx) > 0:
         for i in idx:
             if pass_f[i] == 1:
@@ -1016,198 +755,19 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                 jfit = 'Jrk'
             elif pass_fj[i] == 0:
                 jfit = 'Acc'
-            print fmt % (names[i], mag[i], r[i], ar[i]*1e3, sigmaR[i], at[i]*1e3, sigmaT[i], cnt[i], fit, jfit, xprob[i], yprob[i])
-    idx = np.where(pass_fj ==1)[0]
-    hdr = '%15s  %5s  %6s  %14s  %14s  %8s  %14s  %14s '
-    fmt = '%15s  %5.2f   %5.3f  %8.2f sigma  %8.2f sigma  %2d epochs  %8.2f sigma  %8.2f sigma '
-    print ''
-    print '%s Pass F Test for Jerk' % (len(idx))
-    print hdr % ('Name','K','r (")', 'a_rad (sigma)','a_tan (sigma)','Nepochs','j_x (sigma)','j_y (sigma)')
-    sig_jx = jx/jxe
-    sig_jy = jy/jye
-
-    out_jx = []
-    out_jy = []
-    out_jxe = []
-    out_jye = []
-    out_jx_sig = []
-    out_jy_sig = []
-
-    for i in writeJLatex:
-        jdex = np.where(jnames == names[i])
-        out_jx.append(jx[jdex])
-        out_jy.append(jy[jdex])
-        out_jxe.append(jxe[jdex])
-        out_jye.append(jye[jdex])
-        out_jx_sig.append(sig_jx[jdex])
-        out_jy_sig.append(sig_jy[jdex])
-    
-#        x0[i] = jx0[jdex]
-#        y0[i] = jx0[jdex]
-#        x0e[i] = jx0e[jdex]
-#        y0e[i] = jy0e[jdex]
-#        vx[i] = jvx[jdex]
-#        vy[i] = jvy[jdex]
-#        vxe[i] = jvxe[jdex]
-#        vye[i] = jvye[jdex]
-#        ax[i] = jax[jdex]
-#        ay[i] = jay[jdex]
-#        axe[i] = jaxe[jdex]
-#        aye[i] = jaye[jdex]
-#        ar[i] = jar[jdex]
-#        at[i] = jat[jdex]
-#        are[i] = jare[jdex]
-#        ate[i] = jate[jdex]
-        
-#        test = (GM_as_yr*(ax[i]*vy[i]/ay[i] - vx[i])/(jx[jdex] - ax[i]*jy[jdex]/ay[i]))**(1.0/3.0)
-#        xbh = -test**3*ax[i]/GM_as_yr
-#        ybh = -test**3*ay[i]/GM_as_yr
-
-#        jerkt=(jx[jdex] - ax[i]*jy[jdex]/ay[i])
-#        p_vxe = -GM_as_yr/(3.0*test**2*jerkt)*vxe[i]
-#        p_vye = GM_as_yr/(3.0*test**2*jerkt)*(ax[i]/ay[i])*vxe[i]
-#        p_axe = GM_as_yr/(3.0*test**2*ay[i]*jerkt)*(vy[i]+jy[jdex]*(ax[i]*vy[i]/ay[i] - vx[i])/(jx[jdex] - ax[i]*jy[jdex]/ay[i]))*axe[i]
-#        p_aye = -GM_as_yr*ax[i]/(3.0*test**2*ay[i]**2*jerkt)*(vy[i]+jy[jdex]*(ax[i]*vy[i]/ay[i] - vx[i])/(jx[jdex] - ax[i]*jy[jdex]/ay[i]))*aye[i]
-#        p_jxe = -test*jxe[jdex]/(3.0*jerkt)
-#        p_jye = test*ax[i]*jye[jdex]/(3.0*ay[i]*jerkt)
-        if (pass_f[i] == 1):
-            print fmt % (names[i],mag[i],r[i],sigmaR[i],sigmaT[i],cnt[i],sig_jx[jdex],sig_jy[jdex])
-#        print test,x0[i],y0[i],p_vxe,p_vye,p_axe,p_aye,p_jxe,p_jye
-    totalSample=np.where((r < 1.7) & (cnt > 14))[0]
-    print 'Total in sample (<1.7" and >14 epochs): %s' % (len(totalSample))
-
-
-#    pdb.set_trace()
-    #Calculating z0 aand a_z and their errors
-    x0_pc = x0 * dist / au_in_pc
-    y0_pc = y0 * dist / au_in_pc
-    x0_cm = x0_pc * cm_in_pc
-    y0_cm = y0_pc * cm_in_pc
-    x0e_pc = x0e * dist / au_in_pc
-    y0e_pc = y0e * dist / au_in_pc
-    x0e_cm = x0e_pc * cm_in_pc
-    y0e_cm = y0e_pc * cm_in_pc
-#    r2d = np.sqrt(x0**2 + y0**2) # arcsec
-#    r2d_pc = r2d * dist / au_in_pc
-    r_cm = r * dist * cm_in_pc / au_in_pc
-    re_cm = np.sqrt((x0_cm*x0e_cm/r_cm)**2 + (y0_cm*y0e_cm/r_cm)**2)
-    ar_cmss = ar * asy_to_kms * 1e5 / sec_in_yr
-    are_cmss = are * asy_to_kms * 1e5 / sec_in_yr
-    vx_cms = vx * asy_to_kms * 1e5
-    vy_cms = vy * asy_to_kms * 1e5
-    vxe_cms = vxe * asy_to_kms * 1e5
-    vye_cms = vye * asy_to_kms * 1e5
-    vproj_cms = np.sqrt(vx_cms**2 + vy_cms**2)
-    vproje_cms = np.sqrt((vx_cms*vxe_cms)**2 + (vy_cms*vye_cms)**2)/vproj_cms
-    z0_cm = np.sqrt(abs(((GM * r_cm / ar_cmss)**2)**(1.0/3.0) - r_cm**2)) #abs value (no sign)
-
-    az_cmss = GM * z0_cm / ((x0_cm**2 + y0_cm**2 + z0_cm**2)**(1.5))
-
-    z0e_cm = (abs(G*r_cm/ar_cmss))**(4.0/3.0)*(mass_g)**(-2.0/3.0)*masse_g**2 + ((abs(GM/ar_cmss))**(2.0/3.0)*(abs(r_cm))**(-1.0/3.0)-r_cm)**2*re_cm**2
-    z0e_cm += (abs(GM*r_cm))**(4.0/3.0)*(abs(ar_cmss))**(-10.0/3.0)*are_cmss**2
-    z0e_cm = np.sqrt(z0e_cm)/(3.0 * z0_cm)
-
-    r3d_cm = np.sqrt(x0_cm**2 + y0_cm**2 + z0_cm**2)
-    r3de_cm = np.sqrt(((x0_cm*x0e_cm)**2 + (y0_cm*y0e_cm)**2 + (z0_cm*z0e_cm)**2)/r3d_cm**2)
-    r3d_pc = r3d_cm / cm_in_pc
-    r3de_pc = r3de_cm / cm_in_pc
-    mext = 10.0*pi*density0*(r3d_pc**2)
-    mext_smbh = mext / mass
-
-    aze_cmss = (z0_cm*masse_g)**2 + ((3.0/2.0)*mass_g*z0_cm*r_cm*re_cm/(r3d_cm**2))**2 + (mass_g*z0e_cm*(1.0-(3.0*z0_cm**2/r3d_cm**2)))**2
-    aze_cmss = np.sqrt(aze_cmss) * G / r3d_cm**3
-
-    az_kmsyr = az_cmss * sec_in_yr / 1e5
-    aze_kmsyr = aze_cmss * sec_in_yr / 1e5
-
-    z0_pc = z0_cm / cm_in_pc
-    z0e_pc = z0e_cm / cm_in_pc
-
-    vz_cms = (GM/r3d_cm) - vproj_cms**2
-
-
-    if (outTolatex == True):
-        out = open(home + 'tables/totsample.tex','w')
-        out.write('\\documentclass{aastex} \n')
-        out.write('\\begin{singlespace} \n')
-        out.write('\\begin{deluxetable}{lccccccc} \n')
-        out.write('\\rotate \n')
-        out.write('\\tabletypesize{\\tiny} \n')
-        out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
-        out.write('\\tablewidth{0pt} \n')
-        out.write('\\begin{document} \n')
-        out.write('\\tablecaption{Total Sample}\n')
-        out.write('\\tablehead{ \n')
-        out.write('  \\colhead{Star} & \n')
-        out.write('  \\colhead{$Kp$} & \n')
-        out.write('  \\colhead{Epochs} & \n')
-        out.write('  \\colhead{2D r} & \n')
-        out.write('  \\colhead{$X_0$} & \n')
-        out.write('  \\colhead{$Y_0$} & \n')
-        out.write('  \\colhead{$V_x$} & \n')
-        out.write('  \\colhead{$V_y$} & \n')
-        out.write('%\n')
-        out.write('  \\colhead{} & \n')
-        out.write('  \\colhead{(mag)} & \n')
-        out.write('  \\colhead{} & \n')
-        out.write('  \\colhead{(arcsec)} & \n')
-        out.write('  \\colhead{(arcsec)} & \n')
-        out.write('  \\colhead{(arcsec)} & \n')
-        out.write('  \\colhead{(mas/yr)} & \n')
-        out.write('  \\colhead{(mas/yr)} & \n')
-        out.write('} \n')
-        out.write('\\startdata \n')
-
-        fmt = '%15s  %1s  %5.2f  %1s  %2d  %1s  %5.3f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %4s\n'
-        for ii in range(len(totalSample)):
-
-            out.write(fmt % (names[ii], '&', mag[ii], '&', cnt[ii], '&', r[ii], '&', x0[ii], '$\pm$', x0e[ii], '&', y0[ii], '$\pm$', y0e[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '\\\\'))
-        out.write('\\\\\n')
-        out.write('\\enddata \n')
-        out.write('\\end{deluxetable} \n')
-        out.write('\\end{singlespace} \n')
-        out.write('\\end{document} \n')
-        out.close()
-
-
-    #For BS
-#    for i in range(len(names)):
-#        if (names[i] == '50starg1_13'):
-#            arho_zero_cmss = GM/r_cm[i]**2
-#            arhoe_zero_cmss = ((G*masse_g/r_cm[i]**2)**2 + (2*GM*re_cm[i]/r_cm[i]**3)**2)**(0.5)
-#            print 'For BS'
-#            print arho_zero_cmss
-#            print arhoe_zero_cmss
-    print "Stars that are unbound:"
-    for jj in writeLatex:
-        if (vz_cms[jj] < 0.0):
-            print names[jj]
-    vz_cms = np.sqrt(abs(vz_cms))
-    vze_cms = np.sqrt((G*masse_g/(2*r_cm))**2 + (GM*re_cm/(2*r_cm**2))**2 + (vproj_cms*vproje_cms)**2)/vz_cms
-    if (outTolatex == True):
-        jnames = [names[mm] for mm in writeJLatex]
-        names = [names[nn] for nn in writeLatex]
-
-        return names,x0[writeLatex],y0[writeLatex],mag[writeLatex],r[writeLatex],ar[writeLatex]*1e3,are[writeLatex]*1e3,sigmaR[writeLatex],z0_pc[writeLatex],z0e_pc[writeLatex],az_kmsyr[writeLatex],aze_kmsyr[writeLatex],r3d_pc[writeLatex],r3de_pc[writeLatex],mext_smbh[writeLatex], cnt[writeLatex],vz_cms[writeLatex],vze_cms[writeLatex],pass_fj[writeLatex],jnames,out_jx,out_jy,out_jxe,out_jye,out_jx_sig,out_jy_sig,xchi2r[writeJLatex],ychi2r[writeJLatex]
-
-    elif (outToAL == True):
-        return names,x0,y0,x0e,y0e,vx,vy,vxe,vye,ax,ay,axe,aye,ar,are,at,ate,t0x
-    elif (likelihood == True):
-        return names,r_cm,ar_cmss,are_cmss
-    else:
-        print "Not outputting anything"
+            print fmt % (names[i], mag[i], r[i], ar[i]*1e3, sigmaR[i], at[i]*1e3, sigmaT[i], cnt[i], fit, jfit)
 
 #    return ate, are, at, ar
-#    print ''
-#    print np.min(x0e)
-#    print np.max(x0e)
-#    print ''
-#    print np.min(y0e)
-#    print np.max(y0e)
+    print ''
+    print np.min(x0e)
+    print np.max(x0e)
+    print ''
+    print np.min(y0e)
+    print np.max(y0e)
 
     #####################################################################
 
-def run_f_test(stars, pvalue, root_tmp, alnDir, align, poly, points, returnAcc=False,
+def run_f_test(stars, pvalue, alnDir, align, poly, points, returnAcc=False,
                verbose=True):
     """
     Send in list of names and check whether a velocity or accel fit is best based
@@ -1223,11 +783,11 @@ def run_f_test(stars, pvalue, root_tmp, alnDir, align, poly, points, returnAcc=F
     signif = scipy.special.erfc(pvalue/np.sqrt(2.0))
     print 'Significance value: %8.3e' % signif
 
-    import sc_accel_class as acc ##########CHANGED! root
-    data = acc.accelClass(rootDir=root_tmp+alnDir,align=align,poly=poly,points=points,verbose=verbose)
+    import sc_accel_class as acc ##########CHANGED!
+    data = acc.accelClass(rootDir=root+alnDir,align=align,poly=poly,points=points,verbose=verbose)
 #    data.computeAccel() ####CHANGED!
     data.computeFTest()
-#    data.computeFTestJerk()
+    data.computeFTestJerk()
 
     xFprob = data.xFProb # F test p-value for accel vs. vel
     yFprob = data.yFProb
@@ -1259,18 +819,13 @@ def run_f_test(stars, pvalue, root_tmp, alnDir, align, poly, points, returnAcc=F
     accnames = []
     accXFp = []
     accYFp = []
-    xprob = np.zeros(len(stars))
-    yprob = np.zeros(len(stars))
 
     for ss in range(len(stars)):
         idx = np.where(names == stars[ss])[0]
         xFp = xFprob[idx]
         yFp = yFprob[idx]
-        xprob[ss] = xFprob[idx]
-        yprob[ss] = yFprob[idx]
 
-#        print "Star, prob in X, prob in Y"
-#        print stars[ss], xFp, yFp
+        #print stars[ss], xFp, yFp
 
         if ((xFp < signif) | (yFp < signif)):
             acc[ss] = 1 # Accel fit
@@ -1285,10 +840,10 @@ def run_f_test(stars, pvalue, root_tmp, alnDir, align, poly, points, returnAcc=F
         return accnames, accXFp, accYFp
     # Pass back an array specifying if accel or velocity fit is best
     else:
-        return acc, xprob, yprob
+        return acc
 
 #####SC acced
-def run_fjerk_test(stars, pvalue, root_tmp, alnDir, align, poly, points, verbose=True, returnJrk = False):
+def run_fjerk_test(stars, pvalue, alnDir, align, poly, points, verbose=True, returnJrk = False):
     """
     Send in list of names and check whether a velocity or accel fit is best based
     on the F test. Calls Tuan's accelclass code to do the F test.
@@ -1303,10 +858,8 @@ def run_fjerk_test(stars, pvalue, root_tmp, alnDir, align, poly, points, verbose
     signif = scipy.special.erfc(pvalue/np.sqrt(2.0))
     print 'Significance value: %8.3e' % signif
 
-#    pdb.set_trace()
-
     import sc_accel_class as acc ##########CHANGED!
-    data = acc.accelClass(rootDir=root_tmp+alnDir,align=align,poly=poly,points=points,verbose=verbose)
+    data = acc.accelClass(rootDir=root+alnDir,align=align,poly=poly,points=points,verbose=verbose)
 #    data.computeAccel() ####CHANGED!
 #    data.computeFTest()
     data.computeFTestJerk()
@@ -1364,10 +917,10 @@ def run_fjerk_test(stars, pvalue, root_tmp, alnDir, align, poly, points, verbose
         return jerk
 
 
-def accelLimit(alnDir='14_06_18/', root_tmp ='/g/ghez/align/',
-              align = 'align/align_d_rms_1000_abs_t', updateErr = True,
-              poly='polyfit_nz/fit',polyj='polyfit_nzj/fit', points='points_nz/',
-              starlist='all',epochCut=23):
+def accelLimit(alnDir='11_10_26/',
+              align = 'align/align_d_rms_1000_abs_t',
+              poly='polyfit_c/fit', points='points_c/',
+              starlist='all', nEpochs=30):
     """
     Plot plane-of-the-sky acceleration limits as a function of projected distance.
 
@@ -1400,26 +953,24 @@ def accelLimit(alnDir='14_06_18/', root_tmp ='/g/ghez/align/',
         lbl = 'Young'
 
     # Load data
-#    s = loadPop(root_tmp=root_tmp,alnDir=alnDir,align=align,poly=poly,points=points,starlist=starlist)
-    names,x0,y0,x0e,y0e,vx,vy,vxe,vye,ax,ay,axe,aye,ar,are,at,ate,t0=histAccel(alnDir=alnDir,root_tmp=root_tmp,align=align,
-                                                                               updateErr=updateErr,poly=poly,points=points,
-                                                                               polyj=polyj,starlist=starlist,outToAL=True)
-#    names = s.getArray('name')
-#    mag = s.getArray('mag')
+    s = loadPop(alnDir=alnDir,align=align,poly=poly,points=points,starlist=starlist)
 
-#    x0 = s.getArray('x0')
-#    y0 = s.getArray('y0')
-#    x0e = s.getArray('x0e')
-#    y0e = s.getArray('y0e')
-#    vx = s.getArray('vx')
-#    vy = s.getArray('vy')
-#    vxe = s.getArray('vxe')
-#    vye = s.getArray('vye')
-#    ax = s.getArray('ax')
-#    ay = s.getArray('ay')
-#    axe = s.getArray('axe')
-#    aye = s.getArray('aye')
-#    t0 = s.getArray('t0x')
+    names = s.getArray('name')
+    mag = s.getArray('mag')
+
+    x0 = s.getArray('x0')
+    y0 = s.getArray('y0')
+    x0e = s.getArray('x0e')
+    y0e = s.getArray('y0e')
+    vx = s.getArray('vx')
+    vy = s.getArray('vy')
+    vxe = s.getArray('vxe')
+    vye = s.getArray('vye')
+    ax = s.getArray('ax')
+    ay = s.getArray('ay')
+    axe = s.getArray('axe')
+    aye = s.getArray('aye')
+    t0 = s.getArray('t0x')
 
     x0_pc = x0 * dist / au_in_pc
     y0_pc = y0 * dist / au_in_pc
@@ -1438,22 +989,17 @@ def accelLimit(alnDir='14_06_18/', root_tmp ='/g/ghez/align/',
     ay *= asy_to_kms
     axe *= asy_to_kms
     aye *= asy_to_kms
-    ar *= asy_to_kms
-    at *= asy_to_kms
-    are *= asy_to_kms
-    ate *= asy_to_kms
-
 
     # Determine # of data points per star
     pntcnt = np.zeros(len(names))
     for ii in range(len(names)):
-        pntFileName = '%s%s%s%s.points' % (root_tmp, alnDir, points, names[ii])
+        pntFileName = '%s%s%s%s.points' % (root, alnDir, points, names[ii])
         pntFile = open(pntFileName)
         data = pntFile.readlines()
         pntcnt[ii] = len(data)
 
     # Only plot acceleration upper limits for stars detected in Nepochs:
-    idx = np.where(pntcnt >= epochCut)[0]
+    idx = np.where(pntcnt >= nEpochs)[0]
 
     names = [names[ii] for ii in idx]
     x0 = x0[idx]
@@ -1474,20 +1020,14 @@ def accelLimit(alnDir='14_06_18/', root_tmp ='/g/ghez/align/',
     ay = ay[idx]
     axe = axe[idx]
     aye = aye[idx]
-    ar = ar[idx]
-    at = at[idx]
-    are = are[idx]
-    ate = ate[idx]
     r2d = r2d[idx]
     r2d_pc = r2d_pc[idx]
     rcgs = rcgs[idx]
     t0 = t0[idx]
 
     # Total acceleration
-#    atot = py.hypot(ax, ay)
-#    atoterr = np.sqrt((ax*axe)**2 + (ay*aye)**2) / atot
-    atot = py.hypot(ar, at)
-    atoterr = np.sqrt((ar*are)**2 + (at*ate)**2) / atot
+    atot = py.hypot(ax, ay)
+    atoterr = np.sqrt((ax*axe)**2 + (ay*aye)**2) / atot
 
     # Construct an array of radii out to 4 arcsec in steps of 0.1''
     r = (arange(10 * 5) * 0.1) + 0.1
@@ -1502,17 +1042,17 @@ def accelLimit(alnDir='14_06_18/', root_tmp ='/g/ghez/align/',
 
     ########################################
     #SC added
-#    r_au_s134 = 0.051 * au_in_pc
-#    r_cm_s134 = r_au_s134 * cm_in_au
-#    a_cm_s2_s134 = -GM / r_cm_s134**2
-#    a_km_s_yr_s134 = a_cm_s2_s134 * sec_in_yr / 1.0e5
-#    print 'Acceleration with z=0 at projected radius of S1-34 (0.051 pc): %5.3f' % (a_km_s_yr_s134)
+    r_au_s134 = 0.051 * au_in_pc
+    r_cm_s134 = r_au_s134 * cm_in_au
+    a_cm_s2_s134 = -GM / r_cm_s134**2
+    a_km_s_yr_s134 = a_cm_s2_s134 * sec_in_yr / 1.0e5
+    print 'Acceleration with z=0 at projected radius of S1-34 (0.051 pc): %5.3f' % (a_km_s_yr_s134)
  ####################################################   
 
     # What is the polyfit acceleration upper limit
     # along the radial component? Convert 2D cartesian to circular:
-#    (ar, at, are, ate) = util.xy2circErr(x0, y0, ax, ay,
-#                                         x0e, y0e, axe, aye)
+    (ar, at, are, ate) = util.xy2circErr(x0, y0, ax, ay,
+                                         x0e, y0e, axe, aye)
     
     # What is the radial component limit (3 sigma)
     accLimRadial = ar - (3.0 * are) # km/s/yr
@@ -1631,20 +1171,19 @@ def accelLimit(alnDir='14_06_18/', root_tmp ='/g/ghez/align/',
     sigmaT = at/ate
     sigma = 6.0
     idsig = (np.where((sigmaR < -sigma) & (np.abs(sigmaT) < sigma)))[0] #sig accel
-    #Python having issues with this, some of the stars that are passing have names python can't deal with
-#    py.figure(3)
-#    py.clf()
-#    sc1=py.errorbar(r2d_pc[idsig],ar[idsig],yerr=(3.*are[idsig]),fmt='b.')
-#    py.plot(r_pc,a_km_s_yr,'k')
-#    py.xlabel('Projected Radius (pc)')
-#    py.ylabel('a$_R$ (km/s/yr)')
-#    py.axis([0,0.08,-60,10])
-#    for ii in idsig:
-#        py.annotate(names[ii],(r2d_pc[ii],ar[ii]),fontsize='x-small')
+    py.figure(3)
+    py.clf()
+    sc1=py.errorbar(r2d_pc[idsig],ar[idsig],yerr=(3.*are[idsig]),fmt='b.')
+    py.plot(r_pc,a_km_s_yr,'k')
+    py.xlabel('Projected Radius (pc)')
+    py.ylabel('a$_R$ (km/s/yr)')
+    py.axis([0,0.08,-60,10])
+    for ii in idsig:
+        py.annotate(names[ii],(r2d_pc[ii],ar[ii]),fontsize='x-small')
 #    for i, txt in enumerate(idsig):
 #        ax.annotate(txt,(r2d_pc[idsig[i]],ar[idsig[i]]))
-#    py.savefig(outdir+'sig_acc.png')
-#    py.close(3)
+    py.savefig(outdir+'sig_acc.png')
+    py.close(3)
     print '%8s  %7s  %16s' % \
           ('Star','R2D (pc)', 'a_rad (km/s/yr)')
     for ii in idsig:
@@ -1724,7 +1263,7 @@ def plotVvsR(name,rmin,vx,vy,vxe,vye):
     v_esc_cms = np.sqrt((2. * G * mass * msun) / r_cm) # for curve on plot
     v_esc_kms = v_esc_cms / 1.e5
 
-     # Plot velocities vs. r, w/ error bars
+    # Plot velocities vs. r, w/ error bars
     plot([rmin],[v_kms],'b.')
     errorbar([rmin],[v_kms],yerr=ve_kms,fmt='b.')
     plot(r_pc, v_esc_kms,'r-')
@@ -2112,25 +1651,22 @@ def velVsAcc():
 
 
 
-def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
-             poly='polyfit_nz/fit', points='points_nz/', radial=False, accel_fit=True):
-
-#accel_fit = True the resulting plots of X and Y vs t and Y vs X show accel fit, if false show velocity fit
-#either way outputs another figure showing residuals in X and Y from both fits
+def plotStar(starName, alnDir='13_08_21/',
+             align='align/align_d_rms_1000_abs_t',
+             poly='polyfit_c/fit', points='points_c/', suffix='', radial=False):
 
     outdir = home + 'plots/'
 
-    s = starset.StarSet(rootDir + alnDir + align)
-    
-    s.loadPolyfit(rootDir + alnDir + poly, accel=0, arcsec=0)
-    s.loadPolyfit(rootDir + alnDir + poly, accel=1, arcsec=0)
+    s = starset.StarSet(root + alnDir + align)
+    s.loadPolyfit(root + alnDir + poly, accel=0, arcsec=0)
+    s.loadPolyfit(root + alnDir + poly, accel=1, arcsec=0)
 
     names = s.getArray('name')
     
     ii = names.index(starName)
     star = s.stars[ii]
 
-    pointsTab = asciidata.open(rootDir + alnDir + points + starName + '.points')
+    pointsTab = asciidata.open(root + alnDir + points + starName + '.points')
 
     time = pointsTab[0].tonumpy()
     x = pointsTab[1].tonumpy()
@@ -2138,14 +1674,14 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     xerr = pointsTab[3].tonumpy()
     yerr = pointsTab[4].tonumpy()
 
-    fitxv = star.fitXv
-    fityv = star.fitYv
-    dtv = time - fitxv.t0
-    fitLineXv = fitxv.p + (fitxv.v * dtv)
-    fitSigXv = np.sqrt( fitxv.perr**2 + (dtv * fitxv.verr)**2 )
+    fitx = star.fitXv
+    fity = star.fitYv
+    dt = time - fitx.t0
+    fitLineX = fitx.p + (fitx.v * dt)
+    fitSigX = np.sqrt( fitx.perr**2 + (dt * fitx.verr)**2 )
 
-    fitLineYv = fityv.p + (fityv.v * dtv)
-    fitSigYv = np.sqrt( fityv.perr**2 + (dtv * fityv.verr)**2 )
+    fitLineY = fity.p + (fity.v * dt)
+    fitSigY = np.sqrt( fity.perr**2 + (dt * fity.verr)**2 )
 
     if (radial == True):
         # Lets also do radial/tangential
@@ -2192,69 +1728,20 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         idxT = np.where(abs(sigT) > 4)
         
 
-    diffXv = x - fitLineXv
-    diffYv = y - fitLineYv
+    diffX = x - fitLineX
+    diffY = y - fitLineY
     #diff = np.hypot(diffX, diffY)
-    diffv = (diffXv + diffYv) / 2.0
-    rerrv = np.sqrt((diffXv*xerr)**2 + (diffYv*yerr)**2) / diffv
-    sigXv = diffXv / xerr
-    sigYv = diffYv / yerr
-    sigv = diffv / rerrv
+    diff = (diffX + diffY) / 2.0
+    rerr = np.sqrt((diffX*xerr)**2 + (diffY*yerr)**2) / diff
+    sigX = diffX / xerr
+    sigY = diffY / yerr
+    sig = diff / rerr
 
-    #SC added, find accel fit and accel residuals
-    fitxa = star.fitXa
-    fitya = star.fitYa
-    dta = time - fitxa.t0
-    fitLineXa = fitxa.p + (fitxa.v * dta) + (fitxa.a * dta * dta / 2.0)
-    print fitxa.t0
-    print fitxa.p
-    print fitxa.v
-    print fitxa.a
-    fitSigXa = np.sqrt(fitxa.perr**2 + (dta * fitxa.verr)**2 + (dta * dta * fitxa.aerr / 2.0)**2)
-    fitLineYa = fitya.p + (fitya.v * dta) + (fitya.a * dta * dta / 2.0)
-    print fitya.t0
-    print fitya.p
-    print fitya.v
-    print fitya.a
-    fitSigYa = np.sqrt(fitya.perr**2 + (dta * fitya.verr)**2 + (dta * dta * fitya.aerr / 2.0)**2)
-
-    diffXa = x - fitLineXa
-    diffYa = y - fitLineYa
-    #diff = np.hypot(diffX, diffY)
-    diffa = (diffXa + diffYa) / 2.0
-    rerra = np.sqrt((diffXa*xerr)**2 + (diffYa*yerr)**2) / diffa
-    sigXa = diffXa / xerr
-    sigYa = diffYa / yerr
-    siga = diffa / rerra
-
-#    if (accel_fit == False):
-    sigX=sigXv
-    sigY=sigYv
-    sig=sigv
-    fitx=fitxv
-    fity=fityv
-    fitLineX=fitLineXv
-    fitLineY=fitLineYv
-    fitSigX=fitSigXv
-    fitSigY=fitSigYv
-    fit_tag='Vel Fit'
-
-    if (accel_fit == True):
-        sigX=sigXa
-        sigY=sigYa
-        sig=siga
-        fitx=fitxa
-        fity=fitya
-        fitLineX=fitLineXa
-        fitLineY=fitLineYa
-        fitSigX=fitSigXa
-        fitSigY=fitSigYa
-        fit_tag='Accel Fit'
-
+    
     # Determine if there are points that are more than 5 sigma off
-    idxX = np.where(abs(sigX) > 5)
-    idxY = np.where(abs(sigY) > 5)
-    idx = np.where(abs(sig) > 5)
+    idxX = np.where(abs(sigX) > 4)
+    idxY = np.where(abs(sigY) > 4)
+    idx = np.where(abs(sig) > 4)
 
     print 'Star:        ', starName
     print '\tX Chi^2 = %5.2f (%6.2f for %2d dof)' % \
@@ -2270,11 +1757,14 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     print '*****************'
     print
 
+
+    close(2)
     figure(2, figsize=(7, 8))
     clf()
 
     dateTicLoc = MultipleLocator(3)
-    dateTicRng = [1995, 2015]
+    #dateTicRng = [2006, 2010]
+    dateTicRng = [1995, 2010]
 
     maxErr = np.array([xerr, yerr]).max()
     resTicRng = [-3*maxErr, 3*maxErr]
@@ -2283,11 +1773,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     fmtX = FormatStrFormatter('%5i')
     fmtY = FormatStrFormatter('%6.2f')
 
-#    idtmp=np.where((time > 2006) & (abs(sigY) < 5))
-    idtmp=np.where(time > 1990)
-#    xyplim=[min(x[idtmp])-.002,max(x[idtmp])+.002,min(y[idtmp])-.002,max(y[idtmp])+.002]
-
-    paxes = subplot(2,1,1)
+    paxes = subplot(3, 2, 1)
     plot(time, fitLineX, 'b-')
     plot(time, fitLineX + fitSigX, 'b--')
     plot(time, fitLineX - fitSigX, 'b--')
@@ -2295,16 +1781,13 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     rng = axis()
     axis(dateTicRng + [rng[2], rng[3]])
     xlabel('Date (yrs)')
-    ylabel('X (arcsec)')
-    title(starName+' '+fit_tag)
-#    title('X chi2_red = %4.2f' % fitx.chi2red)
+    ylabel('X (pix)')
     #paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.xaxis.set_major_formatter(fmtX)
     paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.yaxis.set_major_formatter(fmtY)
     
-#    paxes = subplot(3, 2, 2)
-    paxes = subplot(2,1,2)
+    paxes = subplot(3, 2, 2)
     plot(time, fitLineY, 'b-')
     plot(time, fitLineY + fitSigY, 'b--')
     plot(time, fitLineY - fitSigY, 'b--')
@@ -2312,121 +1795,50 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     rng = axis()
     axis(dateTicRng + [rng[2], rng[3]])
     xlabel('Date (yrs)')
-    ylabel('Y (arcsec)')
-#    title('Y chi2_red = %4.2f' % fity.chi2red)
+    ylabel('Y (pix)')
     #paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.xaxis.set_major_formatter(fmtX)
     paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.yaxis.set_major_formatter(fmtY)
-
-    savefig(outdir+'plotXY_t_' + starName + '.png')
-    py.close(2)
-
-    figure(3)
-    clf()
-    subplots_adjust(hspace=0.25,left=0.1, right=0.95,top=0.9, bottom=0.1, wspace=0.25)
-    paxes=subplot(2,2,1)
-    errorbar(time,diffXv*1e3,yerr=xerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('X Residuals (mas)')
-    title('Velocity Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(2,2,2)
-    errorbar(time,diffXa*1e3,yerr=xerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('X Residuals (mas)')
-    title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(2,2,3)
-    errorbar(time,diffYv*1e3,yerr=yerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('Y Residuals (mas)')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(2,2,4)
-    errorbar(time,diffYa*1e3,yerr=yerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('Y Residuals (mas)')
-#    title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    savefig(outdir+'plot_Residuals_'+starName+'.png')
-    py.close(3)
-
-    py.figure(4)
-    py.clf()
-    plot(fitLineX[idtmp], fitLineY[idtmp], 'b-')
-    errorbar(x[idtmp], y[idtmp],xerr=xerr[idtmp], yerr=yerr[idtmp], fmt='k.')
-    title(starName+' '+fit_tag)
-#    rng = axis()
-#    axis(xyplim)
-    xlabel('X (arcsec)')
-    ylabel('Y (arcsec)')
-#    title('Y chi2_red = %4.2f' % fity.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.xaxis.set_major_formatter(fmtX)
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
     
-#    paxes = subplot(3, 2, 3)
-#    plot(time, np.zeros(len(time)), 'b-')
-#    plot(time, fitSigX, 'b--')
-#    plot(time, -fitSigX, 'b--')
-#    errorbar(time, x - fitLineX, yerr=xerr, fmt='k.')
-    #axis(dateTicRng + resTicRng)
-#    axis([2005,2011,-0.001,0.001])
-#    xlabel('Date (yrs)')
-#    ylabel('X Residuals (arcsec)')
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
+    paxes = subplot(3, 2, 3)
+    plot(time, np.zeros(len(time)), 'b-')
+    plot(time, fitSigX, 'b--')
+    plot(time, -fitSigX, 'b--')
+    errorbar(time, x - fitLineX, yerr=xerr, fmt='k.')
+    axis(dateTicRng + resTicRng)
+    xlabel('Date (yrs)')
+    ylabel('X Residuals (pix)')
+    paxes.get_xaxis().set_major_locator(dateTicLoc)
 
-#    paxes = subplot(3, 2, 4)
-#    plot(time, np.zeros(len(time)), 'b-')
-#    plot(time, fitSigY, 'b--')
-#    plot(time, -fitSigY, 'b--')
-#    errorbar(time, y - fitLineY, yerr=yerr, fmt='k.')
-    #axis(dateTicRng + resTicRng)
-#    axis([2005,2011,-0.001,0.001])
-#    xlabel('Date (yrs)')
-#    ylabel('Y Residuals (arcsec)')
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
+    paxes = subplot(3, 2, 4)
+    plot(time, np.zeros(len(time)), 'b-')
+    plot(time, fitSigY, 'b--')
+    plot(time, -fitSigY, 'b--')
+    errorbar(time, y - fitLineY, yerr=yerr, fmt='k.')
+    axis(dateTicRng + resTicRng)
+    xlabel('Date (yrs)')
+    ylabel('Y Residuals (pix)')
+    paxes.get_xaxis().set_major_locator(dateTicLoc)
 
-#    bins = np.arange(-7, 7, 1)
-#    subplot(3, 2, 5)
-#    (n, b, p) = hist(sigX, bins)
-#    setp(p, 'facecolor', 'k')
-#    axis([-5, 5, 0, 20])
-#    xlabel('X Residuals (sigma)')
-#    ylabel('Number of Epochs')
+    bins = np.arange(-7, 7, 1)
+    subplot(3, 2, 5)
+    (n, b, p) = hist(sigX, bins)
+    setp(p, 'facecolor', 'k')
+    axis([-5, 5, 0, 20])
+    xlabel('X Residuals (sigma)')
+    ylabel('Number of Epochs')
 
-#    subplot(3, 2, 6)
-#    (n, b, p) = hist(sigY, bins)
-#    axis([-5, 5, 0, 20])
-#    setp(p, 'facecolor', 'k')
-#    xlabel('Y Residuals (sigma)')
-#    ylabel('Number of Epochs')
+    subplot(3, 2, 6)
+    (n, b, p) = hist(sigY, bins)
+    axis([-5, 5, 0, 20])
+    setp(p, 'facecolor', 'k')
+    xlabel('Y Residuals (sigma)')
+    ylabel('Number of Epochs')
 
-#    subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
-    savefig(outdir+'plotY_X_' + starName + '.png')
-    py.close(4)
-#    print outdir + 'plotStar_' + starName + '.png'
+    subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
+    #savefig(outdir+'plotStar_' + starName + '.eps')
+    savefig(outdir+'plotStar_' + starName + suffix + '.png')
     #show()
 
     ##########
@@ -2438,8 +1850,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         clf()
 
         dateTicLoc = MultipleLocator(3)
-        #dateTicRng = [1995, 2011]
-        dateTicRng = [2006, 2011]
+        dateTicRng = [1995, 2008]
         
         maxErr = np.array([rerr, terr]).max()
         resTicRng = [-3*maxErr, 3*maxErr]
@@ -2456,7 +1867,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         rng = axis()
         axis(dateTicRng + [rng[2], rng[3]])
         xlabel('Date (yrs)')
-        ylabel('R (arcsec)')
+        ylabel('R (pix)')
         paxes.xaxis.set_major_formatter(fmtX)
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         paxes.yaxis.set_major_formatter(fmtY)
@@ -2469,7 +1880,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         rng = axis()
         axis(dateTicRng + [rng[2], rng[3]])
         xlabel('Date (yrs)')
-        ylabel('T (arcsec)')
+        ylabel('T (pix)')
         paxes.xaxis.set_major_formatter(fmtX)
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         paxes.yaxis.set_major_formatter(fmtY)
@@ -2479,10 +1890,9 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         plot(time, fitSigR, 'b--')
         plot(time, -fitSigR, 'b--')
         errorbar(time, r - fitLineR, yerr=rerr, fmt='k.')
-        #axis(dateTicRng + resTicRng)
-        axis([2005,2011,-0.001,0.001])
+        axis(dateTicRng + resTicRng)
         xlabel('Date (yrs)')
-        ylabel('R Residuals (arcsec)')
+        ylabel('R Residuals (pix)')
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         
         paxes = subplot(3, 2, 4)
@@ -2490,10 +1900,9 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         plot(time, fitSigT, 'b--')
         plot(time, -fitSigT, 'b--')
         errorbar(time, t - fitLineT, yerr=terr, fmt='k.')
-        #axis(dateTicRng + resTicRng)
-        axis([2005,2011,-0.001,0.001])
+        axis(dateTicRng + resTicRng)
         xlabel('Date (yrs)')
-        ylabel('T Residuals (arcsec)')
+        ylabel('T Residuals (pix)')
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         
         bins = np.arange(-7, 7, 1)
@@ -2501,20 +1910,19 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         (n, b, p) = hist(sigR, bins)
         setp(p, 'facecolor', 'k')
         axis([-5, 5, 0, 20])
-        xlabel('R Residuals (sigma)')
+        xlabel('T Residuals (sigma)')
         ylabel('Number of Epochs')
         
         subplot(3, 2, 6)
         (n, b, p) = hist(sigT, bins)
         axis([-5, 5, 0, 20])
         setp(p, 'facecolor', 'k')
-        xlabel('T Residuals (sigma)')
+        xlabel('Y Residuals (sigma)')
         ylabel('Number of Epochs')
         
         subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
-        savefig(outdir+'plotStarRadial_' + starName + '.png')
-
-    return fitLineXv,fitLineXa
+        #savefig(outdir+'plotStarRadial_' + starName + '.eps')
+        savefig(outdir+'plotStarRadial_' + starName + suffix + '.png')
 
 
 def getResiduals(alnDir='13_08_21/',
@@ -3587,10 +2995,10 @@ def plotXandY(starName,alnDir='13_08_21/',align='align/align_d_rms_1000_abs_t',
 
 ########################################################################
 ####SC added######################
-def starInfo(starName, alnDir='14_06_18/',
+def starInfo(starName, alnDir='13_08_21/',
               align = 'align/align_d_rms_1000_abs_t',
-              poly='polyfit_nz/fit', points='points_nz/',
-              starlist='all', nEpochs=10):
+              poly='polyfit_c/fit', points='points_c/',
+              starlist='oldstars', nEpochs=30):
     """
     Finds info about given star
 
@@ -3644,7 +3052,6 @@ def starInfo(starName, alnDir='14_06_18/',
     axe = s.getArray('axe')
     aye = s.getArray('aye')
     t0 = s.getArray('t0x')
-    cnt = s.getArray('cnt')
 
     x0_pc = x0 * dist / au_in_pc
     y0_pc = y0 * dist / au_in_pc
@@ -3668,9 +3075,8 @@ def starInfo(starName, alnDir='14_06_18/',
 
     print 'Projected radius of %15s:  %5.3f pc' % (starName, r2d_pc[ii])
     print 'Radial acceleration of %15s:  %5.3f +- %5.3f km/s/yr' % (starName, ar[ii], 3.*are[ii])
-    print 'Tangent acceleration of %15s:  %5.3f +- %5.3f km/s/yr' % (starName, at[ii], 3.*ate[ii])
 
-    return x0[ii],y0[ii],mag[ii],cnt[ii]
+    return x0[ii],y0[ii],mag[ii]
 
 
 def scPopCut(alnDir='11_10_26/',
@@ -4106,8 +3512,8 @@ def fitfunPoly2(p, fjac=None, x=None, y=None, err=None):
 
 def getSigmas(alnDir='14_06_18/', align = 'align/align_d_rms_1000_abs_t', 
               updateErr = True, poly='polyfit_nz/fit', points='points_nz/',
-              chainsDir = 'efit/chains/', starlist='all', 
-              plotSigAcc=False, magCut=16, nEpochs=30, pvalue=3.0,root_tmp='/g/ghez/align/'):
+              chainsDir = 'efit/chains_S0-2_newRV2/', starlist='all', 
+              plotSigAcc=False, magCut=16, nEpochs=30, pvalue=3.0):
     """
     Just returns ar, are, at, and ate
 
@@ -4130,7 +3536,7 @@ def getSigmas(alnDir='14_06_18/', align = 'align/align_d_rms_1000_abs_t',
 #    outdir = root + alnDir + 'plots/'
     outdir = home + 'plots/'
 
-    s = loadPop(root_tmp=root_tmp,alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
+    s = loadPop(alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
 
     names = s.getArray('name')
 
@@ -4155,7 +3561,7 @@ def getSigmas(alnDir='14_06_18/', align = 'align/align_d_rms_1000_abs_t',
 
     #Update errors in position
     if updateErr:
-        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, root_tmp=root_tmp, alnDir=alnDir, chainsDir = chainsDir)
+        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, alnDir=alnDir, chainsDir = chainsDir)
 
     # Make an epochs cut
     idx = np.where((cnt > nEpochs) & (mag < magCut))[0]
@@ -4175,8 +3581,6 @@ def getSigmas(alnDir='14_06_18/', align = 'align/align_d_rms_1000_abs_t',
     mag = mag[idx]
     names = [names[nn] for nn in idx]
 
-    projV = np.sqrt(vx**2 + vy**2)
-
     # Get accelerations in the radial/tangential direction
     r = np.hypot(x0, y0)
     ar = ((ax*x0) + (ay*y0)) / r
@@ -4191,11 +3595,8 @@ def getSigmas(alnDir='14_06_18/', align = 'align/align_d_rms_1000_abs_t',
     pass_f = run_f_test(names,pvalue,alnDir,align,poly,points,verbose=True)
     pass_fj = run_fjerk_test(names,pvalue,alnDir,align,poly,points,verbose=True)
 
-    return ar, are, at, ate, mag, r, pass_f, pass_fj, projV
+    return ar, are, at, ate, mag, r, pass_f, pass_fj
 #    return x0, x0e, y0, y0e, ax, axe, ay, aye, mag, r, pass_f, pass_fj
-
-
-
 
 def quick_delta(accel, accel_err, guess):
     for ess in guess:
@@ -4207,7 +3608,7 @@ def quick_delta(accel, accel_err, guess):
 
 def hazGauss(xdat, ydat, guess=[1,0,1]):
     #Because python doesn't have a standard Gauss fit function
-    #pdb.set_trace()
+
     def gauss(params, x, y):
         return y-(params[0]*np.exp((x-params[1])**2/(-2*params[2]**2)))
 
@@ -4311,17 +3712,12 @@ def fitWeirdXY(accel,error,mag,radius,minD = 0.0,maxD = 5e-5,size = 5e-8,magRang
 
 
 
-def scLeast2(x, y, error, slope=[-10.0,10.0,0.1], inter=[-10.0,10.0,0.1],guess=[1,0,1]):
+def scLeast2(x, y, slope=[-10.0,10.0,0.1], inter=[-10.0,10.0,0.1]):
     #takes the x and y you give it, takes the log of both, and fits a log/log y=mx+b
     #using least residuals
 
-    error = np.log10((x+error)/x)
-    x = np.log10(x)
-    y = np.log10(y)
-
-#    if (error == 0):
-#        error = np.zeros(len(x))+1.0
-
+#    x = np.log(x)
+    y = np.log(y)
     sRange=np.arange(slope[0],slope[1],slope[2])
     iRange=np.arange(inter[0],inter[1],inter[2])
     residuals=np.zeros((len(sRange),len(iRange)))
@@ -4332,24 +3728,11 @@ def scLeast2(x, y, error, slope=[-10.0,10.0,0.1], inter=[-10.0,10.0,0.1],guess=[
             sVal[i,j]=sRange[i]
             iVal[i,j]=iRange[j]
             for k in range(len(x)):
-                residuals[i,j] += (y[k]-(x[k]*sRange[i]+iRange[j]))**2
+                residuals[i,j] += np.abs(y[k]-(x[k]*sRange[i]+iRange[j]))
     want = np.where(residuals == np.min(residuals))
-    #pdb.set_trace()
     print "Best Fit Slope: %5.5f" %sVal[want]
     print "Best Fit Intercept: %5.5f" %iVal[want]
 
-    probsi = np.exp(-residuals/2.0)
-    Sprob = probsi.sum(axis=1)
-
-#    py.clf()
-#    py.plot(sRange,Sprob)
-#    py.show()
-#    pdb.set_trace()
-    gaussInfo = hazGauss(sRange,Sprob,guess=guess)
-    print 'Gauss Fit'
-    print gaussInfo
-
-    return sVal[want],iVal[want]
 
 def hazGraphs():
     ar,are,at,ate,mag,r=getSigmas(alnDir='14_06_18/',poly='polyfit_nz/fit',points='points_nz/',magCut=22,nEpochs=22,updateErr=False)
@@ -4425,2201 +3808,3 @@ def into8(mag):
     RRmiddle=np.median(rightRight)
 
     print LLmiddle, Lmiddle, LRmiddle, middle, RLmiddle, Rmiddle, RRmiddle
-
-
-def makeNSFtable(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
-                 align = 'align/align_d_rms_1000_abs_t', updateErr = True,radCut = 100.0,
-                 poly='polyfit_nz/fit', points='points_nz/', sigma=3.0, polyj='polyfit_nzj/fit',
-                 f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',
-                 starlist='all',magCut=22, nEpochs=14):
-    
-    names,x0,y0,mag,r,ar,are,sigmaR,z0,z0e,az,aze,r3d,r3de,mext,cnt,vz_cms,vze_cms,pass_fj,jnames,jx,jy,jxe,jye,jxsig,jysig,xchi2r,ychi2r=histAccel(alnDir=alnDir,root_tmp=root_tmp,align=align,updateErr=updateErr,radCut=radCut,poly=poly,points=points,sigma=sigma,polyj=polyj,f_test=f_test,pvalue=pvalue,chainsDir=chainsDir,starlist=starlist,magCut=magCut,nEpochs=nEpochs,verbose=False,outTolatex=True)
-#    inG = ['S0-1','S0-3','S0-19','S0-20','S0-16','S0-8','S0-26','S0-7','S0-4','S0-5','S0-40',
-#           'S0-103','S0-49','S0-28','S0-27','S0-52','S0-54','S0-61','S0-30','S0-38','S0-17',
-#           'S0-68','S0-70','S0-45','S1-2','S1-3','S0-36','S0-15','S1-12','S1-13']
-    inG = ['S0-26','S0-7','S0-4','S0-40','S0-1','S0-3','S0-19','S0-2','S0-16','S0-8','S0-20',
-           'S0-103','S0-28','S0-27','S0-52','S0-61','S0-30','S0-38','S0-17',
-           'S0-68','S0-70','S1-2','S1-3','S0-36','S1-12','S1-13']
-    inY = ['S1-3','S0-15','irs16C','irs16SW','S1-12','S1-14']
-#    inB = ['S1-3','S0-15','S1-12']
-    inB = ['S1-3','S1-12']
-#    py.clf()
-#    py.plot(cnt,ar/are,'.')
-#    py.show()
-
-#    new = np.empty(len(names),dtype='string')
-    new = np.array(['New' for i in range(len(names))])
-    for i in range(len(names)):
-#        new[i] = 'New'
-        for j in range(len(inG)):
-            if names[i] == inG[j]:
-                new[i] = 'G'
-        for j in range(len(inY)):
-            if names[i] == inY[j]:
-                new[i] = 'Y'
-        for j in range(len(inB)):
-            if names[i] == inB[j]:
-                new[i] = 'G+Y'
-#        if (names[i] == ''):
-#            names[i] = 'New'
-
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-    cur.execute('SELECT * FROM spectra')
-    vz = np.zeros(len(names))
-    vze = np.zeros(len(names))
-    vzt = np.zeros(len(names))
-#    field = np.empty(len(names),dtype='string')
-#    type = np.empty(len(names),dtype='string')
-    field = np.array(['NA' for i in range(len(names))])
-    type = np.array(['U' for i in range(len(names))])
-    starsInC = ['S0-40','S1-97','S0-49','S1-92','S0-68','S0-61','S0-33','S1-26','S1-32','S0-35','S1-51','S1-4','S1-40','S0-54','S0-38',
-                'star_770']
-    TDold = ['S1-32','S0-35','S0-38']
-    knownO = ['S0-49']
-    knownY = ['S0-61']
-
-#    pdb.set_trace()
-#    for i in range(len(names)):
-#        accNames = str(names[i])
-#        try:
-#            cur.execute('SELECT name,ddate,vz,vz_err FROM spectra WHERE name=?', [accNames])
-#            for row in cur:
-#                vz[i] = row[2]
-#                vze[i] = row[3]
-#                vzt[i] = row[1]
-#                if (vze[i] != vze[i]):
-#                    vze[i] = vz[i]
-#        except:
-#            print "Not in SQLite:"
-#            print accNames
-#        if (vzt[i] == 0.0):
-#            vze[i] = 0.0
-#        field[i] = 'NA'
-    for i in range(len(names)):
-        accNames = str(names[i])
-#        try:
-#            cur.execute('SELECT name,field FROM spectra WHERE name=?', [accNames])
-#            for row in cur:
-#                field[i] = row[1]
-#        except:
-#            continue
-        try:
-            cur.execute('SELECT name,field FROM spectra WHERE name=?', [accNames])
-            for row in cur:
-                field[i] = row[1]
-        except:
-            print "Not in SQLite spectr:"
-            print accNames
-#        for j in range(len(starsInNE)):
-#            if (names[i] == starsInNE[j]):
-#                field[i] = 'NE'
-#        for j in range(len(starsInE)):
-#            if (names[i] == starsInE[j]):
-#                field[i] = 'E'
-        for j in range(len(starsInC)):
-            if (names[i] == starsInC[j]):
-                field[i] = 'C'      
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-    cur.execute('SELECT * FROM stars')
-    for i in range(len(names)):
-        accNames = str(names[i])
-        try:
-            cur.execute('SELECT name,young,old,vz,vz_err,vz_ddate FROM stars WHERE name=?', [accNames])
-            for row in cur:
-#                print row[0],row[1],row[2]
-                if (row[1] == 'T') | (row[2] == 'F'):
-                    type[i] = 'Y'
-                if (row[1] == 'F') | (row[2] == 'T'):
-                    type[i] = 'O'
-#                else:
-#                    type[i] = 'U'
-                vz[i] = row[3]
-                vze[i] = row[4]
-                vzt[i] = row[5]
-                if (vze[i] != vze[i]):
-                    vze[i] = vz[i]
-        except:
-#            type[i] = 'U'
-            print "Not in SQLite stars:"
-            print accNames
-#        pdb.set_trace()
-        for j in range(len(TDold)):
-            if (accNames == TDold[j]):
-                type[i] = 'O'
-        if (accNames == 'S0-38'):
-            vzt[i] = 2013.36
-            vz[i] = -111.00
-            vze[i] = 25.00
-        if (accNames == 'S0-61'):
-            type[i] ='Y'
-        if (accNames == 'S0-49'):
-            type[i] = 'O'
-#        for j in range(len(knownO)):
-#            if (accNames == knownO[j]):
-#                type[i] = 'O'
-#        for j in range(len(knownY)):
-#            if (accNames == knownY[j]):
-#                type[i] ='Y'
-
-#    for i in range(len(names)):
-#        print 'Name: %15s' % (names[i])
-#        print 'Mag: %5.2f' % (mag[i])
-#        print 'Radius: %5.3f' % (r[i])
-#        print 'Accel rad: %8.3f and error %8.3f and sigma %8.2f' % (ar[i], are[i],sigmaR[i])
-#        print 'Z velocity: %8.3f and error %8.3f and time %8.2f' % (vz[i], vze[i], vzt[i])
-#        print 'Type: %3s' % (type[i])
-#        print 'Field: %5s' % (field[i])
-#        print 'New?: %5s' % (new[i])
-
-    # Create the latex file
-    out = open(home + 'tables/ksm14.tex','w')
-    out.write('\\documentclass{aastex} \n')
-    out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lcccccccccccccc} \n')
-#    out.write('\\rotate')
-    out.write('\\rotate \n')
-#    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\tabletypesize{\\tiny} \n')
-    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
-    out.write('\\tablewidth{0pt} \n')
-    out.write('\\begin{document} \n')
-    out.write('\\tablecaption{Significant Accelerating Sources}\n')
-    out.write('\\tablehead{ \n')
-    out.write('  \\colhead{Star} & \n')
-    out.write('  \\colhead{$Kp$} & \n')
-    out.write('  \\colhead{Epochs} & \n')
-    out.write('  \\colhead{2D r} & \n')
-#    out.write('  \\colhead{$T_o$} & \n')
-#    out.write('  \\colhead{$X_o$} & \n')
-#    out.write('  \\colhead{$Y_o$} & \n')
-    out.write('  \\colhead{$a_r$} & \n')
-#    out.write('  \\colhead{Error} & \n')
-    out.write('  \\colhead{$a_r$} & \n')
-#    out.write('  \\colhead{$v_z$} & \n')
-#    out.write('  \\colhead{Error} & \n')
-#    out.write('  \\colhead{Time} & \n')
-    out.write('  \\colhead{z} & \n')
-    out.write('  \\colhead{3D r} & \n')
-    out.write('  \\colhead{$a_z$} & \n')
-    out.write('  \\colhead{$v_z$} & \n')
-#    out.write('  \\colhead{$M_{ext}$} & \n')
-    out.write('  \\colhead{Type} & \n')
-#    out.write('  \\colhead{Field} & \n')
-    out.write('  \\colhead{Notes} & \n')
-    out.write('  \\colhead{Spec} & \n')
-    out.write('  \\colhead{Jerk} & \n')
-#    out.write('  \\colhead{$a_t$} & \n')
-#    out.write('  \\colhead{$a_t$} & \n')
-#    out.write('  \\colhead{Signif-} \\\\ \n')
-    out.write('%\n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{(mag)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{(arcsec)} & \n')
-#    out.write('  \\colhead{(yr)} & \n')
-#    out.write('  \\colhead{(arcsec)} & \n')
-#    out.write('  \\colhead{(arcsec)} & \n')
-    out.write('  \\colhead{(micro-as/yr$^2$)} & \n')
-#    out.write('  \\colhead{(mas/yr$^2$)} & \n')
-    out.write('  \\colhead{(sigma)} & \n')
-#    out.write('  \\colhead{(km/s)} & \n')
-#    out.write('  \\colhead{(km/s)} & \n')
-#    out.write('  \\colhead{(yr)} & \n')
-#    out.write('  \\colhead{(mas/yr$^2$)} & \n')
-#    out.write('  \\colhead{(sigma)} & \n')
-#    out.write('  \\colhead{icant?} \n')
-    out.write('  \\colhead{(mpc)} & \n')
-    out.write('  \\colhead{(mpc)} & \n')
-    out.write('  \\colhead{(km/s/yr)} & \n')
-    out.write('  \\colhead{(km/s)} & \n')
-#    out.write('  \\colhead{($mM_{SMBH}$)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('} \n')
-    out.write('\\startdata \n')
-
-#    fmt = '%15s  %1s  %5.2f  %1s  %5.3f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %3s  %1s  %4s  %1s  %5s  %4s\n'
-
-
-#    fmt = '%15s  %1s  %5.2f  %1s  %7.2f  %1s  %6.2f  %1s  %6.2f  %1s  %7.3f  %5s  '
-#    fmt += '%6.3f  %1s  %5.2f  %1s  %7.3f  %5s  %6.3f  %1s  %5.2f  %1s  %1s  %4s\n'
-
-#    pdb.set_trace()
-
-    for ii in range(len(names)):
-#        if (vzt[ii] == 0.0) | (vzt[ii] != vzt[ii]):
-#             fmt = '%15s  %1s  %5.2f  %1s  %5.3f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %3s  %1s  %3s  %1s  %6.2f  %5s  %6.2f  '
-#             fmt += '%1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %3s  %1s  %4s  %1s  %5s  %4s\n'
-#             out.write(fmt % (names[ii], '&', mag[ii], '&', r[ii], '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', sigmaR[ii], '&', '-','&', '-', '&', z0[ii]*1e3, '$\pm$', 
-#                              z0e[ii]*1e3, '&', r3d[ii]*1e3, '$\pm$', r3de[ii]*1e3, '&', az[ii], '$\pm$', aze[ii], '&', mext[ii]*1e3, '&', type[ii], '&', field[ii], '&', new[ii], '\\\\'))
-#        else:
-        fmt = '%15s  %1s  %5.2f  %1s  %2d  %1s  %5.3f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  '
-        fmt += '%5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %3s  %1s  %5s  %1s  %3s  %1s  %3s  %4s\n'
-        if (vzt[ii] != 0.0) & (vzt[ii] == vzt[ii]):
-            haveSpec = 'X'
-        else:
-            haveSpec = ' '
-        if (pass_fj[ii] == 1):
-            haveJerk = 'X'
-        else:
-            haveJerk = ' '
-        out.write(fmt % (names[ii], '&', mag[ii], '&', cnt[ii], '&', r[ii], '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', sigmaR[ii], '&', z0[ii]*1e3, '$\pm$', z0e[ii]*1e3, '&', r3d[ii]*1e3, '$\pm$', r3de[ii]*1e3, '&', az[ii], '$\pm$', aze[ii], '&', vz_cms[ii]*1e-5, '$\pm$', vze_cms[ii]*1e-5, '&', type[ii], '&', new[ii], '&', haveSpec, '&', haveJerk, '\\\\'))
-
-    out.write('\\\\\n')
-    out.write('\\enddata \n')
-    out.write('\\end{deluxetable} \n')
-    out.write('\\end{singlespace} \n')
-    out.write('\\end{document} \n')
-    out.close()
-
-
-    out = open(home + 'tables/jerkTab.tex','w')
-    out.write('\\documentclass{aastex} \n')
-    out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lccccccccccc} \n')
-    out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\tiny} \n')
-    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
-    out.write('\\tablewidth{0pt} \n')
-    out.write('\\begin{document} \n')
-    out.write('\\tablecaption{Sources With Significant Jerk Terms}\n')
-    out.write('\\tablehead{ \n')
-    out.write('  \\colhead{Star} & \n')
-    out.write('  \\colhead{$Kp$} & \n')
-    out.write('  \\colhead{Epochs} & \n')
-    out.write('  \\colhead{2D r} & \n')
-    out.write('  \\colhead{$a_r$} & \n')
-    out.write('  \\colhead{$a_r$} & \n')
-    out.write('  \\colhead{$J_x$} & \n')
-    out.write('  \\colhead{$J_x$} & \n')
-    out.write('  \\colhead{$J_y$} & \n')
-    out.write('  \\colhead{$J_y$} & \n')
-    out.write('  \\colhead{Red. $\chi_x^2$} & \n')
-    out.write('  \\colhead{Red. $\chi_y^2$} & \n')
-    out.write('%\n')
-    out.write('  \\colhead{} & \n')
-#    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{(mag)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{(arcsec)} & \n')
-    out.write('  \\colhead{(micro-as/yr$^2$)} & \n')
-    out.write('  \\colhead{(sigma)} & \n')
-    out.write('  \\colhead{(micro-as/yr$^3$)} & \n')
-    out.write('  \\colhead{(sigma)} & \n')
-    out.write('  \\colhead{(micro-as/yr$^3$)} & \n')
-    out.write('  \\colhead{(sigma)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('} \n')
-    out.write('\\startdata \n')
-
-    jdex = 0
-
-    printJ = np.where(pass_fj == 1)[0]
-    for ii in printJ:
-        fmt = '%15s  %1s  %5.2f  %1s  %2d  %1s  %5.3f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %1s  %6.2f  %4s\n'
-
-        out.write(fmt % (names[ii], '&', mag[ii], '&', cnt[ii], '&', r[ii], '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', sigmaR[ii], '&', jx[jdex]*1e6, '$\pm$', jxe[jdex]*1e6, '&', jxsig[jdex], '&', jy[jdex]*1e6, '$\pm$', jye[jdex]*1e6, '&', jysig[jdex], '&', xchi2r[jdex], '&', ychi2r[jdex], '\\\\'))
-
-        jdex += 1
-
-    out.write('\\\\\n')
-    out.write('\\enddata \n')
-    out.write('\\end{deluxetable} \n')
-    out.write('\\end{singlespace} \n')
-    out.write('\\end{document} \n')
-    out.close()
-
-    py.clf()
-    knownY = np.where((new!='New') & (type=='Y'))[0]
-    knownO = np.where((new!='New') & (type=='O'))[0]
-    knownU = np.where((new!='New') & (type=='U'))[0]
-    newY = np.where((new=='New') & (type=='Y'))[0]
-    newO = np.where((new=='New') & (type=='O'))[0]
-    newU = np.where((new=='New') & (type=='U'))[0]
-#    pdb.set_trace()
-    py.plot(r[knownY],-1*ar[knownY],'co',label='Known Young')
-    py.plot(r[knownO],-1*ar[knownO],'ro',label='Kn Old')
-    py.plot(r[knownU],-1*ar[knownU],'go',label='Kn Unknown')
-    py.plot(r[newY],-1*ar[newY],'cd',label='New Young')
-    py.plot(r[newO],-1*ar[newO],'rd',label='New Old')
-    py.plot(r[newU],-1*ar[newU],'gd',label='New Unknown')
-    pl1=py.plot([],[],'ko')
-    pl2=py.plot([],[],'kd')
-    py.yscale('log')
-#    pl3=py.plot([],[],'r*',ms=7)
-#    pl4=py.plot([],[],'ro',ms=7)
-    py.legend((pl2,pl1),['Known','New'],numpoints=1)
-    py.text(1.5,3.0,'Young',color='c',fontsize=12)
-    py.text(1.5,2.5,'Old',color='r',fontsize=12)
-    py.text(1.5,2.1,'Unknown',color='g',fontsize=12)
-#    py.legend(numpoints=1)
-    py.axis([0.2,1.8,0.04,10])
-    py.xlabel('Projected Radius (arcsec)')
-    py.ylabel('Radial Acceleration (mas/yr$^2$)')
-    py.savefig('/u/schappell/allAccel_raccel_r.png')
-
-    py.clf()
-    knownY = np.where((new!='New') & (type=='Y'))[0]
-    knownO = np.where((new!='New') & (type=='O'))[0]
-    knownU = np.where((new!='New') & (type=='U'))[0]
-    newY = np.where((new=='New') & (type=='Y'))[0]
-    newO = np.where((new=='New') & (type=='O'))[0]
-    newU = np.where((new=='New') & (type=='U'))[0]
-    py.plot(r[knownY],mag[knownY],'co',label='Known Young')
-    py.plot(r[knownO],mag[knownO],'ro',label='Old')
-    py.plot(r[knownU],mag[knownU],'go',label='Unknown')
-    py.plot(r[newY],mag[newY],'cd',label='New Young')
-    py.plot(r[newO],mag[newO],'rd',label='New Old')
-    py.plot(r[newU],mag[newU],'gd',label='New Unknown')
-    pl1=py.plot([],[],'ko')
-    pl2=py.plot([],[],'kd')
-#    pl3=py.plot([],[],'r*',ms=7)
-#    pl4=py.plot([],[],'ro',ms=7)
-    py.legend((pl2,pl1),['New','Known'],loc=3,numpoints=1)
-    py.text(0.05,10.4,'Young',color='c',fontsize=12)
-    py.text(0.05,10.8,'Old',color='r',fontsize=12)
-    py.text(0.05,11.2,'Unknown',color='g',fontsize=12)
-#    py.legend(numpoints=1)
-#    py.axis([0,2,0,2500])
-    py.xlabel('Projected Radius (arcsec)')
-#    py.ylabel('Radial Acceleration (micro-as/yr^2)')
-    py.ylabel('K (mag)')
-    py.savefig('/u/schappell/allAccel_mag_r.png')
-
-    imgFile='/u/ghezgroup/data/gc/09maylgs/combo/mag09maylgs_sgra_dim_kp.fits'
-    sgra=[624.5,726.3]
-    scale = 0.00995
-    img = pyfits.getdata(imgFile)
-    imgsize = (img.shape)[0]
-
-    # Make axes for images in arcsec
-    pixL = np.arange(0,imgsize)
-    xL = [-1*(xpos - sgra[0])*scale for xpos in pixL]
-    yL = [(ypos - sgra[1])*scale for ypos in pixL]
-
-    # Plots
-    fig = py.figure(figsize=(8,8))
-    fig.subplots_adjust(left=0.1,right=0.95,top=0.95)
-    fig.clf()
-    ax = fig.add_subplot(111)
-
-    ax.imshow(np.log10(img+1), aspect='equal', interpolation='bicubic',
-              extent=[max(xL), min(xL), min(yL), max(yL)],vmin=2.2,vmax=5,
-              origin='lowerleft', cmap=py.cm.gray_r)
-
-    for ii in range(len(x0)):
-        specT = str(type[ii])
-#        p1 = ax.plot(x0[ii],y0[ii],color='g',marker='o',mfc='g',ms=5)
-        if (specT == 'O'):
-            p1 = ax.plot(x0[ii],y0[ii],color='r',marker='o',mfc='r',ms=7)
-        if (specT == 'U'):
-            p2 = ax.plot(x0[ii],y0[ii],color='g',marker='D',mfc='g',ms=7)
-#        if ((vzt[ii] == 0.0) | (vzt[ii] != vzt[ii])):
-#            p3 = ax.plot(x0[ii],y0[ii],color='r',marker='o',mfc='None',mec='r',mew=1,ms=11)
-        if (specT == 'Y'):
-            p3 = ax.plot(x0[ii],y0[ii],color='c',marker='o',mfc='c',ms=7)
-    # Set up legend
-    import matplotlib.font_manager
-    prop = matplotlib.font_manager.FontProperties(size=10)
-
-#    legend_items = ['O/Y','Unknown','No V_z']
-    legend_items = ['Old','Unknown SpT','Young']
-    ax.legend((p1,p2,p3),legend_items, numpoints=1, loc=3, prop=prop)
-    py.plot([0],[0],'k+',ms=8,mew=2)
-    lgdLines = ax.get_legend().get_lines()
-    py.setp(lgdLines, visible=False)
-    ax.set_xlabel('RA (arcsec)')
-    ax.set_ylabel('Dec (arcsec)')
-    ax.axis([2,-2,-2,2])
-    fig.savefig('/u/schappell/unknown_sample.png')
-
-#    outz = np.where(new == 'New')[0]
-#    names = [names[nn] for nn in outz]
-
-    bandaid = np.zeros(len(names))
-    for i in range(len(names)):
-        nstar=str(names[i])
-        if ((nstar=='irs16C') | (nstar=='irs16SW') | (nstar=='S0-49') | (nstar=='S0-40') | (nstar=='S0-36') | (nstar=='S0-61')):
-            bandaid[i] = 1
-        if ((nstar=='S0-61')):
-            type[i]='Y'
-        if (nstar=='S0-49'):
-            type[i]='O'
-
-#    pdb.set_trace()
-    py.clf()
-    have_o = np.where((((vzt != 0.0) & (vzt == vzt)) | (bandaid == 1)) & (type=='O') )[0]
-#    have_oBB = np.where((((vzt != 0.0) & (vzt == vzt)) | (bandaid == 1)) & (type=='O') & (mag < 15.7))[0]
-    have_u = np.where((((vzt != 0.0) & (vzt == vzt)) | (bandaid == 1)) & (type=='U'))[0]
-    have_y = np.where((((vzt != 0.0) & (vzt == vzt)) | (bandaid == 1)) & (type=='Y'))[0]
-    no_o = np.where(((vzt == 0.0) | (vzt != vzt)) & (type=='O') & (bandaid != 1))[0]
-    no_u = np.where(((vzt == 0.0) | (vzt != vzt)) & (type=='U') & (bandaid != 1))[0]
-    no_y = np.where(((vzt == 0.0) | (vzt != vzt)) & (type=='Y') & (bandaid != 1))[0]
-    gr=py.figure()
-    ax=gr.add_subplot(1,1,1)
-    py.plot(r[no_o],-1*ar[no_o],'go',mfc='None',mec='g',ms=7)
-    py.plot(r[no_u],-1*ar[no_u],'go',mfc='None',mec='g',ms=7)
-    py.plot(r[no_y],-1*ar[no_y],'go',mfc='None',mec='g',ms=7)
-    py.plot(r[have_o],-1*ar[have_o],'ro',ms=7)
-    py.plot(r[have_u],-1*ar[have_u],'go',ms=7)
-#    py.plot(r[have_y],-1*ar[have_y],'bo',ms=5)
-#    py.plot(r[have_oBB],-1*ar[have_oBB],'r*',ms=7)
-    pl1=py.plot([],[],'ro',ms=7)
-    pl2=py.plot([],[],'go',mfc='None',ms=7)
-#    pl3=py.plot([],[],'r*',ms=7)
-#    pl4=py.plot([],[],'ro',ms=7)
-    py.legend((pl2,pl1),['Unknown SpT/$V_z$ (Proposed sample)','Late-type (old)'],numpoints=1)
-#    py.text(1.4,2.3,'--Young',color='b',fontsize=14)
-#    py.text(1.4,3.4,'--Old',color='r',fontsize=14)
-#    py.text(1.4,2.8,'--Unknown',color='g',fontsize=14)
-#    py.axis([0,1.8,0,10])
-    py.yscale('log')
-    ax.yaxis.set_major_formatter(ScalarFormatter())
-    py.xlabel('Projected Radius (")')
-    py.ylabel('Acceleration in-the-plane-of-the-sky (mas/$yr^2$)')
-    py.savefig('/u/schappell/vzAccel_raccel_r.ps')
-
-    out = open(home + 'tables/rv_2015.5.tex','w')
-    out.write('\\documentclass{aastex} \n')
-    out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lccccccr} \n')
-#    out.write('\\rotate')
-#    out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-#    out.write('\\tabletypesize{\\tiny} \n')
-    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
-    out.write('\\tablewidth{0pt} \n')
-    out.write('\\begin{document} \n')
-    out.write('\\tablecaption{Significant Accelerating Sources}\n')
-    out.write('\\tablehead{ \n')
-    out.write('  \\colhead{Star} & \n')
-    out.write('  \\colhead{Astrometric} & \n')
-    out.write('  \\colhead{Spectroscopy} & \n')
-#    out.write('  \\colhead{$Kp$} & \n')
-#    out.write('  \\colhead{2D r} & \n')
-#    out.write('  \\colhead{$a_r$} & \n')
-#    out.write('  \\colhead{$a_r$} & \n')
-    out.write('  \\colhead{Time} & \n')
-    out.write('  \\colhead{$v_z$} & \n')
-#    out.write('  \\colhead{z} & \n')
-#    out.write('  \\colhead{3D r} & \n')
-    out.write('  \\colhead{$a_z$} & \n')
-    out.write('  \\colhead{$\Delta$$v_z$ (2015.5)} & \n')
-    out.write('  \\colhead{$\Delta$$v_z$} & \n')
-#    out.write('  \\colhead{$M_{ext}$} & \n')
-#    out.write('  \\colhead{Type} & \n')
-#    out.write('  \\colhead{Field} & \n')
-#    out.write('  \\colhead{Notes} & \n')
-    out.write('%\n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{Epochs} & \n')
-    out.write('  \\colhead{Epochs} & \n')
-#    out.write('  \\colhead{(mag)} & \n')
-#    out.write('  \\colhead{(arcsec)} & \n')
-#    out.write('  \\colhead{(yr)} & \n')
-#    out.write('  \\colhead{(arcsec)} & \n')
-#    out.write('  \\colhead{(arcsec)} & \n')
-#    out.write('  \\colhead{(micro-as/yr$^2$)} & \n')
-#    out.write('  \\colhead{(mas/yr$^2$)} & \n')
-#    out.write('  \\colhead{(sigma)} & \n')
-    out.write('  \\colhead{(yr)} & \n')
-    out.write('  \\colhead{(km/s)} & \n')
-#    out.write('  \\colhead{(km/s)} & \n')
-#    out.write('  \\colhead{(mas/yr$^2$)} & \n')
-#    out.write('  \\colhead{(sigma)} & \n')
-#    out.write('  \\colhead{icant?} \n')
-#    out.write('  \\colhead{(mpc)} & \n')
-#    out.write('  \\colhead{(mpc)} & \n')
-    out.write('  \\colhead{(km/s/yr)} & \n')
-    out.write('  \\colhead{(km/s)} & \n')
-    out.write('  \\colhead{(sigma)} & \n')
-#    out.write('  \\colhead{($mM_{SMBH}$)} & \n')
-#    out.write('  \\colhead{} & \n')
-#    out.write('  \\colhead{} & \n')
-#    out.write('  \\colhead{} & \n')
-    out.write('} \n')
-    out.write('\\startdata \n')
-
-    cur = connection.cursor()
-    cur.execute('SELECT * FROM spectra')
-    for ii in range(len(names)):
-        accNames = str(names[ii])
-        if (vzt[ii] != 0.0) & (vzt[ii] == vzt[ii]):
-            deltaV = az[ii]*(2015.5-vzt[ii])
-            snr = deltaV / vze[ii]
-            cur.execute('SELECT name,ddate,vz,vz_err FROM spectra WHERE name=?', [accNames])
-            nRV = 0
-            for row in cur:
-                try:
-                    row[3]/row[2]
-                    nRV += 1
-                except (ValueError,TypeError):
-                    nRV += 0
-            if (accNames == 'S1-13'):
-                nRV = 1
-            if (accNames == 'S0-38'):
-                nRV = 2
-            fmt = '%15s  %1s  %2d  %1s  %2d  %1s  %5.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', cnt[ii], '&', nRV, '&', vzt[ii], '&', vz[ii], '$\pm$', vze[ii], '&', az[ii], '&', deltaV, '&', snr, '\\\\'))
-
-    out.write('\\\\\n')
-    out.write('\\enddata \n')
-    out.write('\\end{deluxetable} \n')
-    out.write('\\end{singlespace} \n')
-    out.write('\\end{document} \n')
-
-    out.close()
-
-
-
-    return names, az, aze
-
-
-
-def zAccel():
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-    cur.execute('SELECT * FROM spectra')
-    namez,az,aze = makeNSFtable()
-    for i in range(len(namez)):
-        accNames = str(namez[i])
-        time=[]
-        vel=[]
-        vele=[]
-        cur.execute('SELECT name,ddate,vz,vz_err FROM spectra WHERE name=?', [accNames])
-        for row in cur:
-            print row[2], row[3]
-#            if (row[3] != 'None') & (row[3] != '') & (row[2] != 'Nonw'):
-            try:
-                vele.append(float(row[3]))
-                vel.append(float(row[2]))
-                time.append(float(row[1]))
-#            if (row[3] != row[3]):
-#                vele.append(float(row[2]))
-#            else:
-#                vele.append(float(row[3]))
-            except (ValueError,TypeError):
-                print " "
-        time = np.array(time)
-        vel = np.array(vel)
-        vele = np.array(vele)
-#        print "Time"
-#        print time
-#        print "Velocity"
-#        print vel
-#        print "Error"
-#        print vele
-        deltaV = az[i] * (2015.5 - time)
-#        finalV = deltaV * (2015.5 - time) + vel
-#        snr = deltaV / vele
-        print '%15s in 2015.5:' % (namez[i])
-        print '%5s  %18s  %19s  %5s' % ('Year','Vel Error (km/s)', 'Vel 2015.5 (km/s)', 'SNR')
-        for j in range(len(time)):
-            finalvel = vel[j] + deltaV[j]
-            sigma = deltaV[j] / vele[j]
-            print '%6.2f  %8.2f  %20.2f  %10.2f' % (time[j], vele[j], finalvel, sigma)
-
-
-
-def compGill():
-    gAfile = '/u/schappell/gillessen.txt'
-    aInfo = asciidata.open(gAfile)
-
-    #pdb.set_trace()
-    aname = aInfo[0].tonumpy()
-    amag = aInfo[1].tonumpy()
-    ax = aInfo[2].tonumpy()   #In milli-arcsec
-    axe = aInfo[3].tonumpy()
-    avx = aInfo[4].tonumpy()  #In milli-arcsec/yr
-    avxe = aInfo[5].tonumpy()
-    aax = aInfo[6].tonumpy()
-    aax = aax * 2.0    #The 1/2 is in Gillessen reported values for accelerations
-    aaxe = aInfo[7].tonumpy()
-    aaxe = aaxe * 2.0
-#    jx = aInfo[8].tonumpy()
-#    jxe = aInfo[9].tonumpy()
-    at = aInfo[10].tonumpy()   #In years
-    ay = aInfo[11].tonumpy()
-    aye = aInfo[12].tonumpy()
-    avy = aInfo[13].tonumpy()
-    avye = aInfo[14].tonumpy()
-    aay = aInfo[15].tonumpy()
-    aay = aay * 2.0
-    aaye = aInfo[16].tonumpy()
-    aaye = aaye * 2.0
-#    jy = aInfo[17].tonumpy()
-#    jye = aInfo[18].tonumpy()
-    atv = aInfo[19].tonumpy()  #In years
-    avz = aInfo[20].tonumpy()   #In km/s
-    avze = aInfo[21].tonumpy()
-    aaz = aInfo[22].tonumpy()
-#    aaz = aaz * 2.0     #Not all stars have accel assosicated with their velocity in z, will be listed as 'n' as result, deal with this before use
-#    aaze = aInfo[23].tonumpy()
-#    aaze = aaze * 2.0
-#    ajz = aInfo[24].tonumpy()  #STILL NEED to account for the 1/6 factor, do this before using
-#    ajze = aInfo[25].tonumpy()
-    ourAnames = aInfo[26].tonumpy()   #the names of these stars in our system
-
-    r = np.hypot(ax,ay)
-    aar = ((aax*ax) + (aay*ay)) / r
-    aat = ((aax*ay) - (aay*ax)) / r
-    aare =  (aaxe*ax/r)**2 + (aaye*ay/r)**2
-    aare += (ay*axe*aat/r**2)**2 + (ax*aye*aat/r**2)**2
-    aare =  np.sqrt(aare)
-    aate =  (aaxe*ay/r)**2 + (aaye*ax/r)**2
-    aate += (ay*axe*aar/r**2)**2 + (ax*aye*aar/r**2)**2
-    aate =  np.sqrt(aate)
-
-    hdr = '%15s  %7s  %5s  %6s  %17s  %14s  %17s  %14s'
-    fmt = '%15s  %7s  %5.2f   %5.3f"  %8.3f mas/yr^2  %8.2f sigma  %8.3f mas/yr^2  %8.2f sigma '
-    print hdr % ('Name','G Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)','a_tan (mas/yr^2)','a_tan (sigma)')
-    for i in range(len(aname)):
-        print fmt % (ourAnames[i],aname[i],amag[i],r[i]*1e-3,aar[i],aar[i]/aare[i],aat[i],aat[i]/aate[i])
-
-#    return aar,aare,aat,aate
-    return ourAnames
-
-
-def plotDelta(alnDir='14_06_18/',
-              align = 'align/align_d_rms_1000_abs_t', updateErr = True,
-              poly='polyfit_nz/fit', points='points_nz/', sigma=3.0,
-              f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',
-              starlist='all', plotSigAcc=False, magCut=22, nEpochs=24, verbose = True):
-    outdir = home + 'plots/'
-
-    s = loadPop(alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
-
-    names = s.getArray('name')
-    x0 = s.getArray('x0')
-    y0 = s.getArray('y0')
-    x0e = s.getArray('x0e')
-    y0e = s.getArray('y0e')
-    vx = s.getArray('vx')
-    vy = s.getArray('vy')
-    vxe = s.getArray('vxe')
-    vye = s.getArray('vye')
-    ax = s.getArray('ax')
-    ay = s.getArray('ay')
-    axe = s.getArray('axe')
-    aye = s.getArray('aye')
-    t0x = s.getArray('t0x')
-    t0y = s.getArray('t0y')
-        
-    cnt = s.getArray('cnt')
-    mag = s.getArray('mag')
-
-    #Update errors in position
-    if updateErr:
-        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, alnDir=alnDir, chainsDir = chainsDir)
-
-    # Make an epochs cut
-    idx = np.where((cnt > nEpochs) & (mag < magCut))[0]
-    x0 = x0[idx]
-    y0 = y0[idx]
-    x0e = x0e[idx]
-    y0e = y0e[idx]
-    vx = vx[idx]
-    vy = vy[idx]
-    vxe = vxe[idx]
-    vye = vye[idx]
-    ax = ax[idx]
-    ay = ay[idx]
-    axe = axe[idx]
-    aye = aye[idx]
-    cnt = cnt[idx]
-    mag = mag[idx]
-    names = [names[nn] for nn in idx]
-
-    # Get accelerations in the radial/tangential direction
-    r = np.hypot(x0, y0)
-    ar = ((ax*x0) + (ay*y0)) / r
-    at = ((ax*y0) - (ay*x0)) / r
-    are =  (axe*x0/r)**2 + (aye*y0/r)**2
-    are += (y0*x0e*at/r**2)**2 + (x0*y0e*at/r**2)**2
-    are =  np.sqrt(are)
-    ate =  (axe*y0/r)**2 + (aye*x0/r)**2
-    ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
-    ate =  np.sqrt(ate)
-
-    if updateErr:
-        atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17.1])
-        deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
-        delta = mag*0.0
-        for i in range(len(mag)):
-            for j in range(len(atBins)-1):
-                if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
-                    delta[i] = deltaArr[j]
-
-        ateN = np.sqrt(ate**2 + delta**2)
-        areN = np.sqrt(are**2 + delta**2)
-    magB = np.zeros(len(deltaArr))
-    medB = np.zeros(len(deltaArr))
-    medA = np.zeros(len(deltaArr))
-    for i in range(len(deltaArr)):
-        magB[i] = (atBins[i] + atBins[i+1])/2.0
-        inhere = np.where((mag > atBins[i]) & (mag <= atBins[i+1]))[0]
-        medB[i] = median(ate[inhere])
-        medA[i] = median(ateN[inhere])
-
-    py.clf()
-#    py.plot(magB,medB*1e6,'.',label='Before')
-#    py.plot(magB,deltaArr*1e6,'o',label='Delta')
-    py.plot(magB,medA*1e6,'.',label='After')
-#    py.legend(loc=2)
-    py.axis([10,17,15,60])
-    py.xlabel('K Mag')
-    py.ylabel('Error (micro-as/yr^2)')
-    py.savefig('/u/schappell/delta_before_after.png')
-
-
-def calcInfo(starNames=['S0-1','S0-3','S0-19','S0-20','S0-16','S0-8','S0-26','S0-7','S0-4','S0-5','S0-40','S0-103','S0-49','S0-52','S0-28','S0-27','S0-54','S0-61','S0-30','S0-38','S0-45','S0-17','S0-68','S0-70','S1-2','S1-3','S0-36','S0-15','S1-12','S1-13'],
-             alnDir='14_06_18/',root_tmp='/g/ghez/align/',
-             align = 'align/align_d_rms_1000_abs_t', updateErr = True,
-             poly='polyfit_nz/fit', points='points_nz/', sigma=3.0,
-             f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',
-             starlist='all', plotSigAcc=False, verbose = True):
-    """
-    Gives info on the star(s) that input
-    """
-#    outdir = root + alnDir + 'plots/'
-    outdir = home + 'plots/'
-
-    s = loadPop(alnDir=alnDir,root_tmp=root_tmp,starlist=starlist,align=align,poly=poly,points=points)
-    names = s.getArray('name')
-
-#    pdb.set_trace()
-    ii = np.zeros(len(starNames),dtype=int)
-#    pdb.set_trace()
-    for i in range(len(starNames)):
-#    names = s.getArray('name'
-        ii[i] = names.index(str(starNames[i]))
-#    star = s.stars[ii]
-
-#    print "stars that are in hist Accel:"
-#    print names
-
-    # In arcsec, mas/yr, mas/yr^2
-    x0 = s.getArray('x0')
-    y0 = s.getArray('y0')
-    x0e = s.getArray('x0e')
-    y0e = s.getArray('y0e')
-    vx = s.getArray('vx')
-    vy = s.getArray('vy')
-    vxe = s.getArray('vxe')
-    vye = s.getArray('vye')
-    ax = s.getArray('ax')
-    ay = s.getArray('ay')
-    axe = s.getArray('axe')
-    aye = s.getArray('aye')
-    t0x = s.getArray('t0x')
-    t0y = s.getArray('t0y')
-        
-    cnt = s.getArray('cnt')
-    mag = s.getArray('mag')
-
-    #Update errors in position
-    if updateErr:
-        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, root_tmp=root_tmp, alnDir=alnDir, chainsDir = chainsDir)
-
-    # Get accelerations in the radial/tangential direction
-    r = np.hypot(x0, y0)
-    ar = ((ax*x0) + (ay*y0)) / r
-    at = ((ax*y0) - (ay*x0)) / r
-    are =  (axe*x0/r)**2 + (aye*y0/r)**2
-    are += (y0*x0e*at/r**2)**2 + (x0*y0e*at/r**2)**2
-    are =  np.sqrt(are)
-    ate =  (axe*y0/r)**2 + (aye*x0/r)**2
-    ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
-    ate =  np.sqrt(ate)
-
-    if updateErr:
-        atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17.1])
-        deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
-        delta = mag*0.0
-        for i in range(len(mag)):
-            for j in range(len(atBins)-1):
-                if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
-                    delta[i] = deltaArr[j]
-
-        ate = np.sqrt(ate**2 + delta**2)
-        are = np.sqrt(are**2 + delta**2)
-
-
-    # Lets also do parallel/perpendicular to velocity
-#    v = np.sqrt(vx**2 + vy**2)
-#    am = ((ax*vx) + (ay*vy)) / v
-#    an = ((ax*vy) - (ay*vx)) / v
-#    ame = np.sqrt((axe*vx)**2 + (aye*vy)**2) / v
-#    ane = np.sqrt((axe*vy)**2 + (aye*vx)**2) / v
-
-    # Total acceleration
-#    atot = py.hypot(ax, ay)
-#    atoterr = np.sqrt((ax*axe)**2 + (ay*aye)**2) / atot
-
-    ##########
-    #
-    # KS Test... Are the distributions Normal?
-    #
-    ##########
-    sigmaR = ar/are
-    sigmaT = at/ate
-#    sigmaAll = concatenate([sigmaR, sigmaT])
-#    (ksdR, kspR) = stats.stats.kstest(sigmaR, 'norm', N=len(sigmaR))
-#    (ksdT, kspT) = stats.stats.kstest(sigmaT, 'norm', N=len(sigmaT))
-#    (ksdA, kspA) = stats.stats.kstest(sigmaAll, 'norm', N=len(sigmaAll))
-    #print 'KS Test for normality (prob that observed is gaussian):'
-    #print '\tRadial Acc. KS Prob. = %5.3f' % (kspR)
-    #print '\tTangen Acc. KS Prob. = %5.3f' % (kspT)
-    #print '\tCombo Acc. KS Prob. = %5.3f' % (kspA)
-    print ''
-
-    ###########
-    #
-    # F Test -- Accel or Velocity fit?
-    #
-    ###########
-    if f_test == True:
-        # Pass in the star names and run the F test
-        pass_f,xprob,yprob = run_f_test(names,pvalue,root_tmp,alnDir,align,poly,points,verbose=verbose)
-        pass_fj = run_fjerk_test(names,pvalue,root_tmp,alnDir,align,poly,points,verbose=verbose)
-    else:
-        pass_f = np.ones(len(names)) # check everything
-        pass_fj = np.ones(len(names))
-
-
-    #Calculating z0 aand a_z and their errors
-    x0_pc = x0 * dist / au_in_pc
-    y0_pc = y0 * dist / au_in_pc
-    x0_cm = x0_pc * cm_in_pc
-    y0_cm = y0_pc * cm_in_pc
-    x0e_pc = x0e * dist / au_in_pc
-    y0e_pc = y0e * dist / au_in_pc
-    x0e_cm = x0e_pc * cm_in_pc
-    y0e_cm = y0e_pc * cm_in_pc
-#    r2d = np.sqrt(x0**2 + y0**2) # arcsec
-#    r2d_pc = r2d * dist / au_in_pc
-    r_cm = r * dist * cm_in_pc / au_in_pc
-    re_cm = np.sqrt((x0_cm*x0e_cm/r_cm)**2 + (y0_cm*y0e_cm/r_cm)**2)
-    ar_cmss = ar * asy_to_kms * 1e5 / sec_in_yr
-    are_cmss = are * asy_to_kms * 1e5 / sec_in_yr
-    vx_cms = vx * asy_to_kms * 1e5
-    vy_cms = vy * asy_to_kms * 1e5
-    vxe_cms = vxe * asy_to_kms * 1e5
-    vye_cms = vye * asy_to_kms * 1e5
-    vproj_cms = np.sqrt(vx_cms**2 + vy_cms**2)
-    vproje_cms = np.sqrt((vx_cms*vxe_cms)**2 + (vy_cms*vye_cms)**2)/vproj_cms
-    z0_cm = np.sqrt(abs(((GM * r_cm / ar_cmss)**2)**(1.0/3.0) - r_cm**2)) #abs value (no sign)
-
-    az_cmss = GM * z0_cm / ((x0_cm**2 + y0_cm**2 + z0_cm**2)**(1.5))
-
-    z0e_cm = (abs(G*r_cm/ar_cmss))**(4.0/3.0)*(mass_g)**(-2.0/3.0)*masse_g**2 + ((abs(GM/ar_cmss))**(2.0/3.0)*(abs(r_cm))**(-1.0/3.0)-r_cm)**2*re_cm**2
-    z0e_cm += (abs(GM*r_cm))**(4.0/3.0)*(abs(ar_cmss))**(-10.0/3.0)*are_cmss**2
-    z0e_cm = np.sqrt(z0e_cm)/(3.0 * z0_cm)
-
-    r3d_cm = np.sqrt(x0_cm**2 + y0_cm**2 + z0_cm**2)
-    r3de_cm = np.sqrt(((x0_cm*x0e_cm)**2 + (y0_cm*y0e_cm)**2 + (z0_cm*z0e_cm)**2)/r3d_cm**2)
-    r3d_pc = r3d_cm / cm_in_pc
-    r3de_pc = r3de_cm / cm_in_pc
-    mext = 10.0*pi*density0*(r3d_pc**2)
-    mext_smbh = mext / mass
-
-    aze_cmss = (z0_cm*masse_g)**2 + ((3.0/2.0)*mass_g*z0_cm*r_cm*re_cm/(r3d_cm**2))**2 + (mass_g*z0e_cm*(1.0-(3.0*z0_cm**2/r3d_cm**2)))**2
-    aze_cmss = np.sqrt(aze_cmss) * G / r3d_cm**3
-
-    az_kmsyr = az_cmss * sec_in_yr / 1e5
-    aze_kmsyr = aze_cmss * sec_in_yr / 1e5
-    ax_kmsyr = ax * asy_to_kms
-    ay_kmsyr = ay * asy_to_kms
-    axe_kmsyr = axe * asy_to_kms
-    aye_kmsyr = aye * asy_to_kms
-    a_tot = np.sqrt(az_kmsyr**2 + ax_kmsyr**2 + ay_kmsyr**2)
-    ae_tot = np.sqrt((aze_kmsyr*az_kmsyr)**2 + (axe_kmsyr*ax_kmsyr)**2 + (aye_kmsyr*ay_kmsyr)**2)/a_tot
-
-    z0_pc = z0_cm / cm_in_pc
-    z0e_pc = z0e_cm / cm_in_pc
-
-    vz_cms = (GM/r3d_cm) - vproj_cms**2
-    print "Stars that are unbound:"
-    for jj in ii:
-        if (vz_cms[jj] < 0.0):
-            print names[jj]
-    vz_cms = np.sqrt(abs(vz_cms))
-    vze_cms = np.sqrt((G*masse_g/(2*r_cm))**2 + (GM*re_cm/(2*r_cm**2))**2 + (vproj_cms*vproje_cms)**2)/vz_cms
-
-    hdr = '%15s  %5s  %6s  %17s  %14s  %17s  %14s  %8s  %8s %8s  %7s  %7s'
-    fmt = '%15s  %5.2f   %5.3f"  %8.3f mas/yr^2  %8.2f sigma  %8.3f mas/yr^2  %8.2f sigma  %2d epochs  %5s  %5s  %8.3f  %8.3f'
-#    idsig = (np.where((sigmaR < -sigma) & (np.abs(sigmaT) < sigma)))[0] #sig accel
-#    idnp = (np.where(((sigmaR > sigma) | (np.abs(sigmaT) > sigma)) & (cnt > 23)))[0] #non physical accel
-#    writeLatex = (np.where((sigmaR < -sigma) & (np.abs(sigmaT) < sigma) & (pass_f == 1)))[0]
-#    idsig = (np.where(((sigmaR < -22.0) | ((cnt > 24) & (sigmaR < -sigma))) & (np.abs(sigmaT) < sigma)))[0] #sig accel
-#    writeLatex = (np.where(((sigmaR < -22.0) | ((cnt > 24) & (sigmaR < -sigma))) & (np.abs(sigmaT) < sigma) & (pass_f == 1)))[0]
-
-    print hdr % ('Name','K','r (")', 'a_rad (mas/yr^2)','a_rad (sigma)','a_tan (mas/yr^2)','a_tan (sigma)', 'Nepochs', 'A/V Fit', 'J/A Fit', 'X PVal', 'Y PVal')
-    if len(ii) > 0:
-        for i in ii:
-            if pass_f[i] == 1:
-                fit = 'Acc'
-            elif pass_f[i] == 0:
-                fit = 'Vel'
-            if pass_fj[i] == 1:
-                jfit = 'Jrk'
-            elif pass_fj[i] == 0:
-                jfit = 'Acc'
-            print fmt % (names[i], mag[i], r[i], ar[i]*1e3, sigmaR[i], at[i]*1e3, sigmaT[i], cnt[i], fit, jfit, xprob[i], yprob[i])
-    hdr = '%15s  %6s  %7s  %10s  %7s  %12s  %7s  %15s  %7s  %17s  %7s '
-    fmt = '%15s  %6.3f  %4.3f pc  %8.3f  %6.3f pc  %8.3f  %6.3f km/s  %8.3f  %6.3f km/s/yr  %8.3f  %6.3f km/s/yr'
-    print hdr % ('Name','z (mpc)','error','3D r (mpc)','error','v_z (km/s)','error','a_z (km/s/yr)','error','a_tot (km/s/yr)','error')
-    for i in ii:
-        print fmt % (names[i],z0_pc[i]*1e3,z0e_pc[i]*1e3,r3d_pc[i]*1e3,r3de_pc[i]*1e3,vz_cms[i]*1e-5,vze_cms[i]*1e-5,az_kmsyr[i],aze_kmsyr[i],a_tot[i],ae_tot[i])
-
-    gar = np.array([-1.22383614,-0.28086215,-0.83028028,-1.35719794,-1.79287078,-13.06707682,-2.29810387,-2.12296267,-0.43965733,-0.23296113,-1.30797324,-1.66108454,-0.60035385,-10.55786155,-5.44479274,-8.53332086,-1.10424009,-1.19682068,-0.09531442,-0.13620346,-0.701943,-0.16460509,-0.0824143,-0.13303168])
-
-    gare = np.array([0.1644098,0.05243817,0.01859352,0.03893692,0.23743405,0.36248114,0.08768124,0.38602278,0.038,0.03614995,0.07198101,0.12188026,0.03723603,1.03278454,0.44558917,1.10195083,0.19600005,0.16222211,0.01601008,0.01758228,0.12285136,0.01019788,0.01246004,0.01482086])
-
-    gat = np.array([8.80289986e-02,9.56684468e-02,-1.43758109e-02,-1.54601910e-01,-6.04594385e-01,8.71827579e-01,3.96407105e-01,-4.77876050e-01,1.19751744e-03,-1.05422936e-03,2.30047847e-01,-1.09536121e-01,-1.05883212e-01,-8.37185477e-01,8.93932891e-01,3.40190169e+00,-1.80847498e-01,2.73364718e-01,-2.55178605e-02,-9.41371920e-03,1.39985800e-01,4.99315900e-02,2.06853272e-02,-7.11149823e-03])
-
-    gate = np.array([0.18069513,0.06162996,0.01945393,0.04114693,0.28603533,0.44012273,0.12999281,0.31356865,0.03800065,0.0378576,0.06204998,0.08193667,0.03700958,1.47020996,0.29753433,2.01897231,0.19600187,0.14706671,0.01999194,0.01645795,0.11063268,0.01183234,0.0118637,0.01524279])
-
-    names = [names[ij] for ij in ii]
-    ar = ar[ii]
-    are = are[ii]
-    at = at[ii]
-    ate = ate[ii]
-
-    inours = ['S0-54','S0-38','S0-40','S0-49','S0-68','S0-61','S0-30','S0-36','S0-8','S0-28','S0-5','S0-3','S0-4','S1-13','S0-15']
-
-    py.clf()
-#    py.errorbar(gar,ar*1e3,xerr=gare,yerr=are*1e3,fmt='.',color='b',ecolor='b')
-    gsig = gar/gare
-    osig = ar/are
-    py.plot(gsig,osig,'bo')
-    getline = [-100,100]
-    py.plot(getline,getline,color='g')
-    for i in range(len(names)):
-        for j in range(len(inours)):
-            if (names[i] == inours[j]):
-#                py.errorbar(gar[i],ar[i]*1e3,xerr=gare[i],yerr=are[i]*1e3,fmt='.',color='r',ecolor='r')
-                py.plot(gsig[i],osig[i],'ro')
-#    py.axis([-])
-    pl1=py.plot([],[],'ro')
-    py.axis([-60,0,-100,40])
-    legend(pl1,['In Sample'],loc=3,numpoints=1)
-    py.xlabel('Gillessen a_r (sigma)')
-    py.ylabel('a_rad (sigma)')
-    savefig('/u/schappell/our_gillessen_arad.png')
-
-    py.clf()
-#    py.errorbar(gat,at*1e3,xerr=gate,yerr=ate*1e3,fmt='.')
-    gsig = gat/gate
-    osig = at/ate
-    py.plot(gsig,osig,'bo')
-    getline = [-100,100]
-    py.plot(getline,getline,color='g')
-    for i in range(len(names)):
-        for j in range(len(inours)):
-            if (names[i] == inours[j]):
-#                py.errorbar(gat[i],at[i]*1e3,xerr=gate[i],yerr=ate[i]*1e3,fmt='.',color='r',ecolor='r')
-                py.plot(gsig[i],osig[i],'ro')
-    py.axis([-15,15,-15,15])
-#    pl2=py.plot([],[],'r.')
-    legend(pl1,['In Sample'],loc=3,numpoints=1)
-    py.xlabel('Gillessen a_t (sigma)')
-    py.ylabel('a_tan (sigma)')
-    savefig('/u/schappell/our_gillessen_atan.png')
-#    print ' %7s  %7s  %8s  %8s  %8s  %8s  ' %('G Name','O Name','G Sig T','G Sig R','O Sig T','O Sig R')
-#    for i in range(len(names)):
-    print gar/gare,gat/gate,ar/are,at/ate
-
-
-
-def twoProp15():
-
-    imgFile='/u/ghezgroup/data/gc/09maylgs/combo/mag09maylgs_sgra_dim_kp.fits'
-    sgra=[624.5,726.3]
-    scale = 0.00995
-    img = pyfits.getdata(imgFile)
-    imgsize = (img.shape)[0]
-
-    # Make axes for images in arcsec
-    pixL = np.arange(0,imgsize)
-    xL = [-1*(xpos - sgra[0])*scale for xpos in pixL]
-    yL = [(ypos - sgra[1])*scale for ypos in pixL]
-
-    # Plots
-    fig = py.figure(figsize=(8,8))
-    fig.subplots_adjust(left=0.1,right=0.95,top=0.95)
-    fig.clf()
-    ax = fig.add_subplot(111)
-
-    ax.imshow(np.log10(img+1), aspect='equal', interpolation='bicubic',
-              extent=[max(xL), min(xL), min(yL), max(yL)],vmin=2.2,vmax=5,
-              origin='lowerleft', cmap=py.cm.gray_r)
-
-#    for ii in range(len(x0)):
-#        specT = str(type[ii])
-#        p1 = ax.plot(x0[ii],y0[ii],color='g',marker='o',mfc='g',ms=5)
-#        if (specT == 'U'):
-#            p2 = ax.plot(x0[ii],y0[ii],color='m',marker='D',mfc='m',ms=5)
-#        if ((vzt[ii] == 0.0) | (vzt[ii] != vzt[ii])):
-#            p3 = ax.plot(x0[ii],y0[ii],color='r',marker='o',mfc='None',mec='r',mew=1,ms=11)
-        
-    # Set up legend
-    import matplotlib.font_manager
-    prop = matplotlib.font_manager.FontProperties(size=10)
-
-    py.plot([1.5,-.7,-1.15,1.05,1.5],[.6,1.6,.65,-.35,.6],'r')
-    py.plot([0.95,-1.25,-1.7,.5,.95],[-.64,.36,-.66,-1.66,-.64],'r')
-#    py.plot([-.6,-1.56,-2.52,-1.56,-.6],[1.4,1.82,-.4,-.82,1.4],'r')
-    py.plot([1.9,-1.3,-2.1,1.1,1.9],[.8,1.8,-.8,-1.8,.8],'g--')
-    py.text(0.0,.7,'North',color='m')
-    py.text(-0.2,-.7,'South',color='m')
-#    py.text(-1.6,.35,'West',color='m')
-    p1=py.plot([],[],'r',label='Kn5')
-    p2=py.plot([],[],'g--',label='Kn3')
-    ax.legend((p1,p2),['Kn5','Kn3'],loc=3)
-    py.plot([0],[0],'k+',ms=7,mew=2)
-#    lgdLines = ax.get_legend().get_lines()
-#    py.setp(lgdLines, visible=False)
-
-    ax.set_xlabel('RA (arcsec)')
-    ax.set_ylabel('Dec (arcsec)')
-    ax.axis([2.2,-2.2,-2.,2.])
-    fig.savefig('/u/schappell/pointings.png')
-
-    gamma=np.array([-1.0,-0.5,0.0,0.5,1.0,1.5])#,2.0])
-    naccelo=np.array([0.0,0.1,0.2,0.4,0.9,2.2])#,5.7])
-    uppero=np.array([0.3,0.4,0.8,1.1,2.0,2.9])#,3.8])
-    lowero=np.array([0.0,0.1,0.2,0.4,0.9,2.2])#,3.8])
-
-    naccel = naccelo*2.2*8.5
-    upper=uppero*sqrt(2.2*8.5)
-    lower=lowero*sqrt(2.2*8.5)
-
-    py.clf()
-#    new=py.errorbar(gamma,naccel,yerr=[lower,upper],fmt='ro',ecolor='r',capsize=1.5,elinewidth=1.5,label='$N_a$ (mag < 17)')
-    new=py.errorbar(gamma,naccel,yerr=[lower,upper],fmt='ro',ecolor='r',label='$N_a$ (mag < 17)')
-    old=py.errorbar(gamma,naccelo,yerr=[lowero,uppero],fmt='ko',ecolor='k',label='$N_a$ (mag < 15.5)')
-    ours=py.plot([-3,3],[2,2],color='m',label='Observed $N_a$ (<15.5 mag)')
-    tdo=fill([0.05-.6,0.05-.6,.05+.29,.05+.29],[-15,145,145,-15],'b',alpha=0.2,label='Velocity Fit')
-    bw=fill([7.0/4.0,7.0/4.0,3.0/2.0,3.0/2.0],[-15,145,145,-15],'g',alpha=0.2,label='Bahcall-Wolf')
-#    tdo=py.axvspan(0.05-.6,0.06+.29,facecolor='b',alpha=0.5)
-#    bw=py.axvspan(1.5,1.75,facecolor='g',alpha=0.5)
-    legend(loc=2,numpoints=1)
-    py.axis([-1.1,1.8,-5,60])
-    py.xlabel('Gamma')
-    py.ylabel('Number of Accel. Old Stars')
-    py.savefig('/u/schappell/numaccel.png')
-
-
-
-def whatAjerk(alnDir='14_06_18/',poly='polyfit_nzj/fit',points='points_nz/',printThese=['S0-2','S0-3','S0-1','S0-5','S0-20','S0-19','S0-8','S0-49','S0-38']):
-
-#    pdb.set_trace()
-    fitRoot = root + alnDir + poly
-    fitFile = fitRoot + '.accelFormal'
-    t0File = fitRoot + '.t0'
-
-    _fit = asciidata.open(fitFile)
-    _t0 = asciidata.open(t0File)
-
-    t0x = _t0[1].tonumpy()
-    t0y = _t0[2].tonumpy()
-    names = _fit[0].tonumpy()
-    x0 = _fit[1].tonumpy()
-    vx = _fit[2].tonumpy()
-    ax = _fit[3].tonumpy()
-    jx = _fit[4].tonumpy()
-    x0e = _fit[5].tonumpy()
-    vxe = _fit[6].tonumpy()
-    axe = _fit[7].tonumpy()
-    jxe = _fit[8].tonumpy()
-    xchi2 = _fit[9].tonumpy()
-    xq = _fit[10].tonumpy()
-
-    y0 = _fit[11].tonumpy()
-    vy = _fit[12].tonumpy()
-    ay = _fit[13].tonumpy()
-    jy = _fit[14].tonumpy()
-    y0e = _fit[15].tonumpy()
-    vye = _fit[16].tonumpy()
-    aye = _fit[17].tonumpy()
-    jye = _fit[18].tonumpy()
-    ychi2 = _fit[19].tonumpy()
-    yq = _fit[20].tonumpy()
-
-    #Transfer jerk from x and y to radial and tangential
-    r = np.hypot(x0,y0)
-    jr = ((jx*x0) + (jy*y0)) / r
-    jt = ((jx*y0) - (jy*x0)) / r
-    jre = (jxe*x0/r)**2 + (jye*y0/r)**2 + (y0*x0e*jt/r**2)**2 + (x0*y0e*jt/r**2)**2
-    jre = np.sqrt(jre)
-    jte = (jxe*y0/r)**2 + (jye*x0/r)**2 + (y0*x0e*jr/r**2)**2 + (x0*y0e*jr/r**2)**2
-    jte = np.sqrt(jte)
-
-    sigr = jr/jre
-    sigt = jt/jte
-    sigx = jx/jxe
-    sigy = jy/jye
-
-    fmt = '%15s  %15.3f  %15.2f  %15.3f  %15.2f  %10.2f  %7.2f  %7.2f'
-    hdr = '%15s  %18s  %14s  %18s  %14s  %14s  %6s'
-
-    def jerkAccel_equ(origin):
-        xbh,ybh,zbh,z0,vz,az = origin
-        radius = math.sqrt((x_prime-xbh)**2+(y_prime-ybh)**2+(z0-zbh)**2)
-        jx_equ = GM_mas_yr*vx_prime/radius**3-3*ax_prime*((-x_prime+xbh)*vx_prime+(-y_prime+ybh)*vy_prime+(-z0+zbh)*vz)/radius**2-jx_prime
-        jy_equ = GM_mas_yr*vy_prime/radius**3-3*ay_prime*((-x_prime+xbh)*vx_prime+(-y_prime+ybh)*vy_prime+(-z0+zbh)*vz)/radius**2-jy_prime
-#        jz_equ = GM_mas_yr*vz/radius**3 - 3*az*((x_prime - xbh)*vx_prime+(y_prime - ybh)*vy_prime + (z0 - zbh)*vz)/radius**2 -jz
-        ax_equ = -GM_mas_yr*(x_prime-xbh)/radius**3-ax_prime
-        ay_equ = -GM_mas_yr*(y_prime-xbh)/radius**3-ay_prime
-        az_equ = -GM_mas_yr*(z0-zbh)/radius**3-az
-        atan_equ=-1.0*(ay_prime*(z0-zbh)-az*(y_prime-ybh)+az*(x_prime-xbh)-ax_prime*(z0-zbh)+ax_prime*(y_prime-ybh)-ay_prime*(x_prime-xbh))
-        return (jx_equ, jy_equ, ax_equ, ay_equ, az_equ, atan_equ)
-
-#    for i in range(len(names)):
-    if printThese!=[]:
-        print hdr % ('Name','j_x (m-as/yr^3)','j_x (sigma)','j_y (m-as/yr^3)','j_y (sigma)','Position (mas)','Time')
-        for i in range(len(printThese)):
-            for j in range(len(names)):
-                if str(names[j]) == str(printThese[i]):
-                    print fmt % (names[j],jx[j]*1e6,sigx[j],jy[j]*1e6,sigy[j],x0[j]*1e3,y0[j]*1e3,t0y[j])
-                    if str(names[j]) == str('S0-49'):
-                        print x0[j],y0[j]
-                        print vx[j],vy[j]
-                        print ax[j],ay[j]
-                        print jx[j],jy[j]
-                        print GM_as_yr
- #                   pointsTab = asciidata.open(root + alnDir + points + str(names[j]) + '.points')
- #                   ptime = pointsTab[0].tonumpy()
- #                   px = pointsTab[1].tonumpy()
- #                   py = pointsTab[2].tonumpy()
- #                   pxe = pointsTab[3].tonumpy()
- #                   pye = pointsTab[4].tonumpy()
-#        for i in range(len(printThese)):
-#            for j in range(len(names)):
-#                if str(names[j]) == str(printThese[i]):
-#                    GM_mas_yr = GM_as_yr*1e9
-#                    x_prime = x0[j]*1e3
-#                    y_prime = y0[j]*1e3
-#                    vx_prime = vx[j]*1e3
-#                    vy_prime = vy[j]*1e3
-#                    ax_prime = ax[j]*1e3
-#                    ay_prime = ay[j]*1e3
-#                    jx_prime = jx[j]*1e3
-#                    jy_prime = jy[j]*1e3
-#                    print names[j]
-#                    solvedArray = opter.fsolve(jerkAccel_equ,[0,0,0,0,0,0])
-#                    print 'BH coordinates:'
-#                    print solvedArray[0],solvedArray[1],solvedArray[2]
-#                    print 'Z position, velocity, accel:'
-#                    print solvedArray[3],solvedArray[4],solvedArray[5]
-#                    print ''
-#                    print GM_as_yr
-#                    print x_prime, y_prime,vx_prime,vy_prime,ax_prime,ay_prime,jx_prime,jy_prime
-                    
-    else:
-#        pdb.det_trace()
-        idx = np.where((abs(sigx) > 3.0) | (abs(sigy) > 3.0))[0]
-        print hdr % ('Name','j_x (m-as/yr^3)','j_x (sigma)','j_y (m-as/yr^3)','j_y (sigma)','Position (mas)','Time')
-        for j in idx:
-            print fmt % (names[j],jx[j]*1e6,sigx[j],jy[j]*1e6,sigy[j],x0[j]*1e3,y0[j]*1e3,t0y[j])
-
-
-
-def plotStarJerk(starName,alnDir='14_06_18/', root_tmp='/g/ghez/align/',
-                 align = 'align/align_d_rms_1000_abs_t', poly='polyfit_nz/fit', points='points_nz/', polyj='polyfit_nzj/fit',
-                 f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',outTolatex=False,outToAL=False,
-                 starlist='all', plotSigAcc=False, magCut=22, nEpochs=14, verbose = True):
-    """
-    Plots figures for a given star's jerk fit, if it has one
-    """
-
-    outdir = home + 'plots/'
-
-    #Load Jerk values
-    fitRoot = root_tmp + alnDir + polyj
-    fitFile = fitRoot + '.accelFormal'
-    t0File = fitRoot + '.t0'
-
-    _fit = asciidata.open(fitFile)
-    _t0 = asciidata.open(t0File)
-
-    jt0x = _t0[1].tonumpy()
-    jt0y = _t0[2].tonumpy()
-    jnames = _fit[0].tonumpy()
-    jx0 = _fit[1].tonumpy()
-    jvx = _fit[2].tonumpy()
-    jax = _fit[3].tonumpy()
-    jx = _fit[4].tonumpy()
-    jx0e = _fit[5].tonumpy()
-    jvxe = _fit[6].tonumpy()
-    jaxe = _fit[7].tonumpy()
-    jxe = _fit[8].tonumpy()
-    jxchi2 = _fit[9].tonumpy()
-
-    jy0 = _fit[11].tonumpy()
-    jvy = _fit[12].tonumpy()
-    jay = _fit[13].tonumpy()
-    jy = _fit[14].tonumpy()
-    jy0e = _fit[15].tonumpy()
-    jvye = _fit[16].tonumpy()
-    jaye = _fit[17].tonumpy()
-    jye = _fit[18].tonumpy()
-    jychi2 = _fit[19].tonumpy()
-
-    for i in range(len(jnames)):
-        if (str(jnames[i]) == str(starName)):
-            t0x = jt0x[i]
-            x0 = jx0[i]
-            vx = jvx[i]
-            ax = jax[i]
-            jx = jx[i]
-            x0e = jx0e[i]
-            vxe = jvxe[i]
-            axe = jaxe[i]
-            jxe = jxe[i]
-
-            t0y = jt0y[i]
-            y0 = jy0[i]
-            vy = jvy[i]
-            ay = jay[i]
-            jy = jy[i]
-            y0e = jy0e[i]
-            vye = jvye[i]
-            aye = jaye[i]
-            jye = jye[i]
-
-    pointsTab = asciidata.open(root_tmp + alnDir + points + starName + '.points')
-    time = pointsTab[0].tonumpy()
-    x = pointsTab[1].tonumpy()
-    y = pointsTab[2].tonumpy()
-    xerr = pointsTab[3].tonumpy()
-    yerr = pointsTab[4].tonumpy()
-
-    dt = time - t0x
-    fitLineX = x0 + (vx * dt) + (ax * dt * dt / 2.0) + (jx * dt * dt * dt / 6.0)
-    fitSigX = np.sqrt(x0e**2 + (vxe * dt)**2 + (axe * dt * dt / 2.0)**2 + (jxe * dt * dt * dt / 6.0)**2)
-
-    fitLineY = y0 + (vy * dt) + (ay * dt * dt / 2.0) + (jy * dt * dt * dt / 6.0)
-    fitSigY = np.sqrt(y0e**2 + (vye * dt)**2 + (aye * dt * dt / 2.0)**2 + (jye * dt * dt * dt / 6.0)**2)
-
-    diffX = x - fitLineX
-    diffY = y - fitLineY
-
-    py.clf()
-    dateTicLoc = MultipleLocator(3)
-    dateTicRng = [1995, 2015]
-
-    maxErr = np.array([xerr, yerr]).max()
-    resTicRng = [-3*maxErr, 3*maxErr]
-
-    from matplotlib.ticker import FormatStrFormatter
-    fmtX = FormatStrFormatter('%5i')
-    fmtY = FormatStrFormatter('%6.2f')
-
-#    idtmp=np.where((time > 2006) & (abs(sigY) < 5))
-    idtmp=np.where(time > 1990)
-#    xyplim=[min(x[idtmp])-.002,max(x[idtmp])+.002,min(y[idtmp])-.002,max(y[idtmp])+.002]
-
-    paxes = subplot(2,1,1)
-    py.plot(time, fitLineX, 'b-')
-    py.plot(time, fitLineX + fitSigX, 'b--')
-    py.plot(time, fitLineX - fitSigX, 'b--')
-    errorbar(time, x, yerr=xerr, fmt='k.')
-    rng = axis()
-    py.axis(dateTicRng + [rng[2], rng[3]])
-    py.xlabel('Date (yrs)')
-    py.ylabel('X (arcsec)')
-    py.title(starName+' Jerk Fit')
-#    title('X chi2_red = %4.2f' % fitx.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.yaxis.set_major_formatter(fmtY)
-    
-#    paxes = subplot(3, 2, 2)
-    paxes = subplot(2,1,2)
-    py.plot(time, fitLineY, 'b-')
-    py.plot(time, fitLineY + fitSigY, 'b--')
-    py.plot(time, fitLineY - fitSigY, 'b--')
-    py.errorbar(time, y, yerr=yerr, fmt='k.')
-    rng = axis()
-    py.axis(dateTicRng + [rng[2], rng[3]])
-    py.xlabel('Date (yrs)')
-    py.ylabel('Y (arcsec)')
-#    title('Y chi2_red = %4.2f' % fity.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.yaxis.set_major_formatter(fmtY)
-
-    savefig(outdir+'plotJerkXY_t_' + starName + '.png')
-    py.close(2)
-
-    figure(3)
-    clf()
-    subplots_adjust(hspace=0.25,left=0.1, right=0.95,top=0.9, bottom=0.1, wspace=0.25)
-    paxes=subplot(1,2,1)
-    py.errorbar(time,diffX*1e3,yerr=xerr*1e3,fmt='b.')
-    py.plot([0,3000],[0,0],'k')
-    py.axis(dateTicRng+[-10,10])
-    py.xlabel('Date (yrs)')
-    py.ylabel('X Residuals (mas)')
-    py.title('Velocity Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(1,2,2)
-    py.errorbar(time,diffY*1e3,yerr=yerr*1e3,fmt='b.')
-    py.plot([0,3000],[0,0],'k')
-    py.axis(dateTicRng+[-10,10])
-    py.xlabel('Date (yrs)')
-    py.ylabel('X Residuals (mas)')
-#    py.title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-#    paxes=subplot(2,2,3)
-#    py.errorbar(time,diffYv*1e3,yerr=yerr*1e3,fmt='b.')
-#    plot([0,3000],[0,0],'k')
-#    axis(dateTicRng+[-10,10])
-#    xlabel('Date (yrs)')
-#    ylabel('Y Residuals (mas)')
-#    paxes.xaxis.set_major_formatter(fmtX)
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-#    paxes=subplot(2,2,4)
-#    errorbar(time,diffYa*1e3,yerr=yerr*1e3,fmt='b.')
-#    plot([0,3000],[0,0],'k')
-#    axis(dateTicRng+[-10,10])
-#    xlabel('Date (yrs)')
-#    ylabel('Y Residuals (mas)')
-#    title('Acceleration Fit')
-#    paxes.xaxis.set_major_formatter(fmtX)
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    savefig(outdir+'plot_JerkResiduals_'+starName+'.png')
-    py.close(3)
-
-    py.figure(4)
-    py.clf()
-    py.plot(fitLineX[idtmp], fitLineY[idtmp], 'b-')
-    py.errorbar(x[idtmp], y[idtmp],xerr=xerr[idtmp], yerr=yerr[idtmp], fmt='k.')
-    py.title(starName+' Jerk Fit')
-#    rng = axis()
-#    axis(xyplim)
-    py.xlabel('X (arcsec)')
-    py.ylabel('Y (arcsec)')
-#    title('Y chi2_red = %4.2f' % fity.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.xaxis.set_major_formatter(fmtX)
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-    
-#    paxes = subplot(3, 2, 3)
-#    plot(time, np.zeros(len(time)), 'b-')
-#    plot(time, fitSigX, 'b--')
-#    plot(time, -fitSigX, 'b--')
-#    errorbar(time, x - fitLineX, yerr=xerr, fmt='k.')
-    #axis(dateTicRng + resTicRng)
-#    axis([2005,2011,-0.001,0.001])
-#    xlabel('Date (yrs)')
-#    ylabel('X Residuals (arcsec)')
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-
-#    paxes = subplot(3, 2, 4)
-#    plot(time, np.zeros(len(time)), 'b-')
-#    plot(time, fitSigY, 'b--')
-#    plot(time, -fitSigY, 'b--')
-#    errorbar(time, y - fitLineY, yerr=yerr, fmt='k.')
-    #axis(dateTicRng + resTicRng)
-#    axis([2005,2011,-0.001,0.001])
-#    xlabel('Date (yrs)')
-#    ylabel('Y Residuals (arcsec)')
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-
-#    bins = np.arange(-7, 7, 1)
-#    subplot(3, 2, 5)
-#    (n, b, p) = hist(sigX, bins)
-#    setp(p, 'facecolor', 'k')
-#    axis([-5, 5, 0, 20])
-#    xlabel('X Residuals (sigma)')
-#    ylabel('Number of Epochs')
-
-#    subplot(3, 2, 6)
-#    (n, b, p) = hist(sigY, bins)
-#    axis([-5, 5, 0, 20])
-#    setp(p, 'facecolor', 'k')
-#    xlabel('Y Residuals (sigma)')
-#    ylabel('Number of Epochs')
-
-#    subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
-    savefig(outdir+'plotJerkY_X_' + starName + '.png')
-    py.close(4)
-
-
-
-def roughDensity(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
-                 align = 'align/align_d_rms_1000_abs_t', updateErr = True,poly='polyfit_nz/fit',
-                 points='points_nz/', sigma=3.0, polyj='polyfit_nzj/fit',f_test=True, pvalue=4.0, sig3d=1.0, errCut = 0.1,
-                 chainsDir = 'efit/chains/', slope=[-10.0,10.0,0.1],inter=[0.0,10.0,0.1],
-                 starlist='all', magCut=15.5, nEpochs=14, radCut = 1.7, verbose = True, guess=[0.8,-2.5,0.5]):
-    """
-    Plots
-    """
-#    outdir = root + alnDir + 'plots/'
-    outdir = home + 'plots/'
-
-    s = loadPop(root_tmp=root_tmp,alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
-
-    names = s.getArray('name')
-#    print "stars that are in hist Accel:"
-#    print names
-
-    # In arcsec, mas/yr, mas/yr^2
-    x0 = s.getArray('x0')
-    y0 = s.getArray('y0')
-    x0e = s.getArray('x0e')
-    y0e = s.getArray('y0e')
-    vx = s.getArray('vx')
-    vy = s.getArray('vy')
-    vxe = s.getArray('vxe')
-    vye = s.getArray('vye')
-    ax = s.getArray('ax')
-    ay = s.getArray('ay')
-    axe = s.getArray('axe')
-    aye = s.getArray('aye')
-    t0x = s.getArray('t0x')
-    t0y = s.getArray('t0y')
-    xchi2r = s.getArray('xchi2r')
-    ychi2r = s.getArray('ychi2r')
-        
-    cnt = s.getArray('cnt')
-    mag = s.getArray('mag')
-
-
-    #Load Jerk values
-    fitRoot = root_tmp + alnDir + polyj
-    fitFile = fitRoot + '.accelFormal'
-    t0File = fitRoot + '.t0'
-
-    _fit = asciidata.open(fitFile)
-    _t0 = asciidata.open(t0File)
-
-    jt0x = _t0[1].tonumpy()
-    jt0y = _t0[2].tonumpy()
-    jnames = _fit[0].tonumpy()
-    jx0 = _fit[1].tonumpy()
-    jvx = _fit[2].tonumpy()
-    jax = _fit[3].tonumpy()
-    jx = _fit[4].tonumpy()
-    jx0e = _fit[5].tonumpy()
-    jvxe = _fit[6].tonumpy()
-    jaxe = _fit[7].tonumpy()
-    jxe = _fit[8].tonumpy()
-    jxchi2 = _fit[9].tonumpy()
-#    jxq = _fit[10].tonumpy()
-
-    jy0 = _fit[11].tonumpy()
-    jvy = _fit[12].tonumpy()
-    jay = _fit[13].tonumpy()
-    jy = _fit[14].tonumpy()
-    jy0e = _fit[15].tonumpy()
-    jvye = _fit[16].tonumpy()
-    jaye = _fit[17].tonumpy()
-    jye = _fit[18].tonumpy()
-    jychi2 = _fit[19].tonumpy()
-#    jyq = _fit[20].tonumpy()
-
-
-
-    ###########
-    #
-    # F Test -- Accel or Velocity fit?
-    #
-    ###########
-    if f_test == True:
-        # Pass in the star names and run the F test
-        pass_f,xprob,yprob = run_f_test(names,pvalue,root_tmp,alnDir,align,poly,points,verbose=verbose)
-        pass_fj = run_fjerk_test(names,pvalue,root_tmp,alnDir,align,poly,points,verbose=verbose)
-    else:
-        pass_f = np.ones(len(names)) # check everything
-        pass_fj = np.ones(len(names))
-
-    idex = np.where(pass_fj ==1)[0]
-
-    for i in idex:
-        if (str(names[i]) == 'S0-16'):
-            pass_f[i] == 1
-
-    # S0-16 has such a high inclination that it is being seen as a velocity, force the f test vel/acc to be acc
-    r = np.hypot(x0, y0)
-    idex = np.where((pass_fj ==1) & (pass_f == 1) & (cnt > nEpochs) & (mag < magCut) & (r < radCut))[0]
-
-    for i in idex:
-#        pdb.set_trace()
-        jdex = np.where(jnames == str(names[i]))
-        x0[i] = jx0[jdex]
-        y0[i] = jy0[jdex]
-        x0e[i] = jx0e[jdex]
-        y0e[i] = jy0e[jdex]
-        vx[i] = jvx[jdex]
-        vy[i] = jvy[jdex]
-        vxe[i] = jvxe[jdex]
-        vye[i] = jvye[jdex]
-        ax[i] = jax[jdex]
-        ay[i] = jay[jdex]
-        axe[i] = jaxe[jdex]
-        aye[i] = jaye[jdex]
-        xchi2r[i] = jxchi2[jdex]/(cnt[i] - 4.0)
-        ychi2r[i] = jychi2[jdex]/(cnt[i] - 4.0)
-        t0x[i] = jt0x[jdex]
-        t0y[i] = jt0y[jdex]
-#        ar[i] = jar[jdex]
-#        at[i] = jat[jdex]
-#        are[i] = jare[jdex]
-#        ate[i] = jate[jdex]
-#    sigmaR = ar/are
-#    sigmaT = at/ate
-
-
-    # Get accelerations in the radial/tangential direction
-    r = np.hypot(x0, y0)
-
-    # Make an epochs cut
-    idx = np.where((cnt > nEpochs) & (mag < magCut) & (r < radCut))[0]
-    x0 = x0[idx]
-    y0 = y0[idx]
-    x0e = x0e[idx]
-    y0e = y0e[idx]
-    vx = vx[idx]
-    vy = vy[idx]
-    vxe = vxe[idx]
-    vye = vye[idx]
-    ax = ax[idx]
-    ay = ay[idx]
-    axe = axe[idx]
-    aye = aye[idx]
-    cnt = cnt[idx]
-    mag = mag[idx]
-    xchi2r = xchi2r[idx]
-    ychi2r = ychi2r[idx]
-    r = r[idx]
-    t0x = t0x[idx]
-    t0y = t0y[idx]
-    names = [names[nn] for nn in idx]
-
-    print 'Number in sample cut:'
-    print len(idx)
-
-    ar = ((ax*x0) + (ay*y0)) / r
-    at = ((ax*y0) - (ay*x0)) / r
-    are =  (axe*x0/r)**2 + (aye*y0/r)**2
-    are += (y0*x0e*at/r**2)**2 + (x0*y0e*at/r**2)**2
-    are =  np.sqrt(are)
-    ate =  (axe*y0/r)**2 + (aye*x0/r)**2
-    ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
-    ate =  np.sqrt(ate)
-
-#    writeJLatex = np.where((pass_fj ==1) & (pass_f == 1) & (r < 1.0))[0]
-#    pdb.set_trace()
-
-    if updateErr:
-        x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, root_tmp=root_tmp, alnDir=alnDir, chainsDir = chainsDir)
-#        jx0e,jy0e,jvxe,jvye = nzErr(jx0e, jy0e, jvxe, jvye, jt0x, jt0y, jmag, alnDir=alnDir, chainsDir = chainsDir)
-
-    if updateErr:
-        atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17.1])
-        deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
-        
-
-        #Finding the delta to add in quad to the error depending on the radius and mag, whichever one, radius or mag
-        #error is larger
-        delta = mag*0.0
-
-        for i in range(len(mag)):
-            for j in range(len(atBins)-1):
-                if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
-                    delta[i] = deltaArr[j]            
-
-        ate = np.sqrt(ate**2 + delta**2)
-        are = np.sqrt(are**2 + delta**2)
-
-    r3dMax =  radCut * dist / au_in_pc
-
-    x0_pc = x0 * dist / au_in_pc
-    y0_pc = y0 * dist / au_in_pc
-    x0_cm = x0_pc * cm_in_pc
-    y0_cm = y0_pc * cm_in_pc
-    x0e_pc = x0e * dist / au_in_pc
-    y0e_pc = y0e * dist / au_in_pc
-    x0e_cm = x0e_pc * cm_in_pc
-    y0e_cm = y0e_pc * cm_in_pc
-#    r2d = np.sqrt(x0**2 + y0**2) # arcsec
-#    r2d_pc = r2d * dist / au_in_pc
-    r_cm = r * dist * cm_in_pc / au_in_pc
-    re_cm = np.sqrt((x0_cm*x0e_cm/r_cm)**2 + (y0_cm*y0e_cm/r_cm)**2)
-    ar_cmss = ar * asy_to_kms * 1e5 / sec_in_yr
-    are_cmss = are * asy_to_kms * 1e5 / sec_in_yr
-#    vx_cms = vx * asy_to_kms * 1e5
-#    vy_cms = vy * asy_to_kms * 1e5
-#    vxe_cms = vxe * asy_to_kms * 1e5
-#    vye_cms = vye * asy_to_kms * 1e5
-#    vproj_cms = np.sqrt(vx_cms**2 + vy_cms**2)
-#    vproje_cms = np.sqrt((vx_cms*vxe_cms)**2 + (vy_cms*vye_cms)**2)/vproj_cms
-    z0_cm = np.sqrt(abs(((GM * r_cm / ar_cmss)**2)**(1.0/3.0) - r_cm**2)) #abs value (no sign)
-
-#    az_cmss = GM * z0_cm / ((x0_cm**2 + y0_cm**2 + z0_cm**2)**(1.5))
-
-    z0e_cm = (abs(G*r_cm/ar_cmss))**(4.0/3.0)*(mass_g)**(-2.0/3.0)*masse_g**2 + ((abs(GM/ar_cmss))**(2.0/3.0)*(abs(r_cm))**(-1.0/3.0)-r_cm)**2*re_cm**2
-    z0e_cm += (abs(GM*r_cm))**(4.0/3.0)*(abs(ar_cmss))**(-10.0/3.0)*are_cmss**2
-    z0e_cm = np.sqrt(z0e_cm)/(3.0 * z0_cm)
-
-    r3d_cm = np.sqrt(x0_cm**2 + y0_cm**2 + z0_cm**2)
-    r3de_cm = np.sqrt(((x0_cm*x0e_cm)**2 + (y0_cm*y0e_cm)**2 + (z0_cm*z0e_cm)**2)/r3d_cm**2)
-    r3d_pc = r3d_cm / cm_in_pc
-    r3de_pc = r3de_cm / cm_in_pc
-
-#    vz_cms = (GM/r3d_cm) - vproj_cms**2
-
-    #say that if a star is unbound or within 1sig of being unbound, set projected radius as its 3D radius
-
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-#    cur.execute('SELECT * FROM unknownSims')
-    oldProb = np.zeros(len(names))
-
-    print "Stars that are unbound within 1 sig:"
-    for i in range(len(names)):
-#        tmpName = str(names[i])
-        if ((((GM * (r_cm[i]+re_cm[i]) / ar_cmss[i])**2)**(1.0/3.0) - r_cm[i]**2) <= 0):
-            print names[i]
-            r3d_cm[i] = r_cm[i]
-            r3de_cm[i] = re_cm[i]
-            r3d_pc[i] = r_cm[i] / cm_in_pc
-            r3de_pc[i] = re_cm[i] / cm_in_pc
-
-#    print 'Stars that are not in database at all:'
-    for i in range(len(names)):
-        tmpName = str(names[i])
-#        if (tmpName == 'S1-38'):
-#            pdb.set_trace()
-        try:
-            cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
-            for row in cur:
-                if (row[1] == 'F') | (row[2] == 'T'):
-                    oldProb[i] = 1.0
-        except:
-            oldProb[i] = 0.0
-        try:
-            cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
-            for row in cur:
-                oldProb[i] = row[1]
-        except:
-            continue
-        if (tmpName == 'S0-32'):
-            oldProb[i] = 0.0
-#                print tmpName
-
-    print 'Star, Prob Old, r in arcsec:'
-    for i in range(len(names)):
-        print names[i],oldProb[i],r3d_pc[i]*au_in_pc / dist
-    #pdb.set_trace()
-    #Have the probs for all stars in decided sample, determine bins
-
-    sig_r3d = np.abs(r3d_pc / r3de_pc)
-
-    fmdex = np.where((sig_r3d >= sig3d) & (r3de_pc < errCut) & (r3d_pc <= r3dMax) & (oldProb > 0.0))[0]
-#    maxR = np.max(np.log10(r3d_pc[fmdex]))+0.000001
-#    minR = np.min(np.log10(r3d_pc[fmdex]))-0.000001
-
-    #maxR = np.max(r3d_pc[fmdex])+0.000001
-    #minR = np.min(r3d_pc[fmdex])-0.000001
-    #binSize = (maxR-minR)/binNum
-    #radLim = np.array([minR+binSize*i for i in range(binNum+1)])
-#    radLim = np.array([binSize*i for i in range(binNum+1)])
-    binNum = 3
-    maxR = 1.0
-    minR = 0.01
-    radLim = np.array([0.01,0.025,0.05,0.075])
-    number = np.zeros(binNum)
-    volume = np.zeros(binNum)
-    radius3D = np.zeros(binNum)
-    binSize = np.zeros(binNum)
-
-    for i in range(binNum):
-        pdb.set_trace()
-#        tmpDex = np.where((np.log10(r3d_pc) >= radLim[i]) & (np.log10(r3d_pc) < radLim[i+1]) & (sig_r3d >= sig3d) & (r3de_pc < errCut))[0]
-        tmpDex = np.where((oldProb > 0.0) & (r3d_pc >= radLim[i]) & (r3d_pc < radLim[i+1]) & (sig_r3d >= sig3d) & (r3de_pc < errCut))[0]
-        tmpSum = oldProb[tmpDex]
-        number[i] = tmpSum.sum()
-#        volume[i] = 4.0*pi*((10.0**radLim[i+1])**3 - (10.0**radLim[i])**3)/3.0
-        volume[i] = 4.0*pi*(radLim[i+1]**3 - radLim[i]**3)/3.0
-        radius3D[i] = np.median((r3d_pc[tmpDex]))
-        #pdb.set_trace()
-        binSize[i] = radLim[i+1] - radLim[i]
-
-    densityBin = number/volume #number density in pc^-3
-    numerr = np.sqrt(number)
-    err_pl = np.log10((numerr+number)/number)
-    error_density = numerr/volume
-    for i in range(binNum):
-        if (error_density[i] >= densityBin[i]):
-            error_density[i] = densityBin[i] - 1.0
-
-#    pdb.set_trace()
-    sval,ival=scLeast2(radius3D,densityBin,error=error_density,slope=slope,inter=inter,guess=guess)
-
-    print number
-
-    plOld = np.where((oldProb > 0.0) & (sig_r3d >= sig3d) & (r3de_pc < errCut) & (r3d_pc <= r3dMax))[0]
-    ploz = np.zeros(len(plOld))+10.0**0.05
-    
-    rho_pl = np.log10(densityBin)
-    r_pl = np.log10(radius3D)
-    rLeft = np.array([radLim[i] for i in range(binNum)])
-    #errpatch = np.array([[densityBin[0]-1.0,error_density[1],error_density[2]],error_density])
- #   fitLine = r_pl*sval + ival
-    py.clf()
-    py.bar(rLeft,densityBin,width=binSize,bottom=1.0,color='w')
-    py.errorbar(radius3D,densityBin,yerr=error_density,fmt='o')
-    py.plot((r3d_pc[plOld]),ploz,'D')
- #   py.plot(r_pl,fitLine)
-    py.xscale('log')
-    py.yscale('log')
-    py.xlabel('Log Radius (pc)')
-    py.ylabel('Log Density (pc^-3)')
-    py.savefig(outdir + 'roughRho.png')
-
-    pdb.set_trace()
-
-    print "log radius and log density"
-    print r_pl
-    print rho_pl
-    print err_pl
-    
-
-
-def protolikeGamma(numz=1000.,rrange=[1.8,100.0,1000.],dataCut = 100.0,projCut=1.7,grange=[-5.0,2.0,1000.],alnDir='14_06_18/', root_tmp='/g/ghez/align/',
-                   align = 'align/align_d_rms_1000_abs_t', updateErr = True,poly='polyfit_nz/fit',
-                   points='points_nz/', polyj='polyfit_nzj/fit', outTolatex=False,outToAL=False,
-                   starlist='all',magCut=15.5,nEpochs=14,likelihood=True):
-    #Read in 
-    #run histaccel every time or write out to .txt and read from there?    
-
-    names,Rproj_a,ar_a,are_a=histAccel(alnDir=alnDir,root_tmp=root_tmp,align = align,radCut = projCut,poly=poly, points=points,polyj=polyj,
-                                       outTolatex=outTolatex,outToAL=outToAL,starlist=starlist, magCut=magCut, nEpochs=nEpochs, likelihood=likelihood)
-
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-#    cur.execute('SELECT * FROM unknownSims')
-    oldProb = np.zeros(len(names))
-
-#    print "Stars that are unbound within 1 sig:"
-#    for i in range(len(names)):
-#        tmpName = str(names[i])
-#        if ((((GM * (r_cm[i]+re_cm[i]) / ar_cmss[i])**2)**(1.0/3.0) - r_cm[i]**2) <= 0):
-#            print names[i]
-#            r3d_cm[i] = r_cm[i]
-#            r3de_cm[i] = re_cm[i]
-#            r3d_pc[i] = r_cm[i] / cm_in_pc
-#            r3de_pc[i] = re_cm[i] / cm_in_pc
-
-#    print 'Stars that are not in database at all:'
-    for i in range(len(names)):
-        tmpName = str(names[i])
-#        if (tmpName == 'S1-38'):
-#            pdb.set_trace()
-        try:
-            cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
-            for row in cur:
-                if (row[1] == 'F') | (row[2] == 'T'):
-                    oldProb[i] = 1.0
-        except:
-            oldProb[i] = 0.0
-        try:
-            cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
-            for row in cur:
-                oldProb[i] = row[1]
-        except:
-            continue
-        if (tmpName == 'S0-32'):
-            oldProb[i] = 0.0
-
-    drad = (rrange[1]-rrange[0])/rrange[2]
-    radCut = np.array([rrange[0] + i*drad for i in range(rrange[2])])
-    rcut = radCut * dist * cm_in_au
-    Rcut = projCut * dist * cm_in_au
-    rDataCut = dataCut * dist * cm_in_au
-#    rmin = radMin * dist * cm_in_au
-
-    #test
-#    Rproj = rcut/2.0
-#    ar = GM*Rproj/(np.sqrt(Rproj**2 + (Rproj/2.0)**2))**3 
-#    are = ar/25.0
-
-    dgam = (grange[1]-grange[0])/grange[2]
-    gamma = np.array([grange[0] + i*dgam for i in range(grange[2])])
-    no2 = np.where(gamma != 2.0)
-    gamma = gamma[no2]
-    grange[2] = len(gamma)
-
-    lnL = np.zeros([rrange[2],grange[2]])
-    print ""
-    print 'Stars in likelihood and probOld'
-
-    for j in range(len(Rproj_a)):
-        if ((oldProb[j] > 0.0)): #& (ar_a[j] < -1.0*are_a[j])):
-            print names[j],oldProb[j]
-
-#            pdb.set_trace()
-            Rproj = Rproj_a[j]
-            ar = ar_a[j]
-            are = are_a[j]
-            print ar,are
-            prob_star = np.zeros([rrange[2],grange[2]])
-
-            for k in range(rrange[2]):
-#                pdb.set_trace()
-                rcut_tmp = rcut[k]
-                
-                zcut = np.sqrt(rcut_tmp**2 - Rproj**2)
-                dz = zcut/numz
-#                z = np.array([0.0 + i*(zcut/numz) for i in range(numz)])
-                z = np.array([(dz/100.0) + i*dz for i in range(numz)])
-                
-                if (ar < 0.0):
-                    a_p = -1.0*GM*Rproj/(np.sqrt(Rproj**2 + z**2))**3
-                    prob_ap = np.exp(-1.0*(ar - a_p)**2/(2.0*are**2))
-#                norm1 = np.sum(prob_ap) #*dz
-                    norm1 = abs(are*math.sqrt(pi/2.0)*(special.erf((ar - min(a_p))/(math.sqrt(2)*are)) - special.erf((ar - max(a_p))/(math.sqrt(2)*are))))
-#                    norm1 = abs(are*math.sqrt(pi/2.0)*(special.erf((ar - min(a_p))/(math.sqrt(2)*are)) - special.erf((ar/(math.sqrt(2)*are)))))
-                    if (norm1 == 0.0):
-                        norm1 = integrate.quad(lambda x: math.exp(-1.0*(ar - x)**2/(2.0*are**2)), min(a_p), max(a_p))
-#                        norm1 = integrate.quad(lambda x: math.exp(-1.0*(ar - x)**2/(2.0*are**2)), min(a_p), 0.0)
-                        norm1 = abs(norm1[0])
-                else:
-                    prob_ap = (Rproj**2 + z**2)**(2.5)/(3.0*z*GM*Rproj)
-#                    norm1 = np.max(z)
-                    norm1 = math.sqrt(rDataCut**2 - Rproj**2)
-                prob_a = prob_ap/norm1
-                
-
-        #   pdb.set_trace()
-#            rho_irho = np.zeros([numz,grange[2]])
-#             for i in range(numz):
-#                z_tmp = z[i]
-#                rho_tmp = (gamma+3.0)*(np.sqrt(Rproj**2 + z_tmp**2))**gamma/(rcut**(gamma+3.0)-rmin**(gamma+3.0))
-#                norm2 = np.sum(rho_tmp)*dgam
-#                rho_irho[i] = np.abs(rho_tmp/norm2)
-
-            #Sum over z
-#            prob_gam = np.array([np.sum(prob_a * rho_irho[:,i]) * dz for i in range(grange[2])])
-#            pdb.set_trace()
-
-                for i in range(grange[2]):
-#                    pdb.set_trace()
-                    g_tmp = gamma[i]
-                    rho_tmp = (np.sqrt(Rproj**2 + z**2))**(-1.0*g_tmp)
-#                    norm2 = -2.0*zcut*Rcut**2*((zcut/Rcut)**2+1.0)**(g_tmp/2.0)*(zcut**2+Rcut**2)**(g_tmp/-2.0)*special.hyp2f1(0.5,((g_tmp/2.0)-1.0),1.5,-1.0*(zcut/Rcut)**2)/(g_tmp-2.0)
-                    norm2a = integrate.quad(lambda x: x**(2.0-g_tmp), 0.0, rcut_tmp)
-                    norm2b = integrate.quad(lambda x: x**2.0 * (Rcut**2.0 + x**2)**(g_tmp/-2.0), 0.0, math.sqrt(rcut_tmp**2.0 - Rcut**2.0))
-                    norm2 = norm2a[0] - norm2b[0]
-#                    test = integrate.dblquad(lambda zprime,Rprime: 2.0*Rprime*(zprime**2+Rprime**2)**(g_tmp/-2.0), 0, Rcut, lambda zprime: 0, 
-#                                             lambda zprime: math.sqrt(rcut_tmp**2.0 - zprime**2.0))
-#                    test = test[0]
-                    prob_z = rho_tmp/norm2
-
-                    prob_rcut_gam = prob_a*prob_z*dz
-                    try:
-                        lnL[k,i] += oldProb[j] * math.log(np.sum(prob_rcut_gam))
-                        prob_star[k,i] = np.sum(prob_rcut_gam)
-                    except:
-                        pdb.set_trace()
-#                if (((str(names[j]) == str('S1-13')) | (str(names[j]) == str('S0-35')) | (str(names[j]) == str('S1-17'))) &
-#                    (i==0)):
-#                    pdb.set_trace()
-
-#            lnL = lnL + oldProb[j] * np.log(prob_gam)
-#            pdb.set_trace()
-    like_final = np.exp(lnL - np.max(lnL))
-    X,Y = np.meshgrid(gamma,(rcut/cm_in_pc))
-    import scOld
-    levels = scOld.getContourLevels(like_final)
-    left,width = 0.1,0.65
-    bottom,height = 0.1,0.65
-    bottom_h = left_h = left+width+0.02
-    rect_cont = [left,bottom,width,height]
-    rect_histx = [left,bottom_h,width,0.2]
-    rect_histy = [left_h,bottom,0.2,height]
-    py.clf()
-    axCont = py.axes(rect_cont)
-    axHistx = py.axes(rect_histx)
-    axHisty = py.axes(rect_histy)
-    
-    axCont.contour(Y,X,like_final,levels=levels,colors=('limegreen','gray','k'))
-    py.xlabel('Radius Cut (pc)')
-    py.ylabel('Gamma')
-    py.savefig('/u/schappell/plots/single_power_like_contour.png')
-    pdb.set_trace()
-
-
-
-
-def likeGamma(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='align/align_d_rms_1000_abs_t',
-              poly='polyfit_nz/fit',points='points_nz/',R2Dcut = 1.7,nEpochs = 14.,magCut=15.5,globalt0 = 2013.318,dataCut=100.,
-              starlist='all',chainsDir='efit/chains/',grange=[-14.0,2.0,100.],rrange=[1.71,10.0,100.],numz=100.):
-
-    #Load info on catalogue, x and y positions temp, they are assigned by which t0 is used for that star
-    #Won't be using that t0, will define global t0 for all stars
-    s = loadPop(root_tmp=root_tmp,alnDir=alnDir,starlist=starlist,align=align,poly=poly,points=points)
-
-    names = s.getArray('name')
-    xtmp = s.getArray('x0')
-    ytmp = s.getArray('y0')
-    cnt = s.getArray('cnt')
-    mag = s.getArray('mag')
-
-    projRtmp = np.sqrt(xtmp**2 + ytmp**2)
-
-    cut1 = np.where((projRtmp < R2Dcut) & (cnt > nEpochs) & (mag > magCut))[0]
-    names = [names[nn] for nn in cut1]
-    projRtmp = projRtmp[cut1] * dist / au_in_pc
-
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-    oldProb = np.zeros(len(names))
-
-    for i in range(len(names)):
-        tmpName = str(names[i])
-        try:
-            cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
-            for row in cur:
-                if (row[1] == 'F') | (row[2] == 'T'):
-                    oldProb[i] = 1.0
-        except:
-            oldProb[i] = 0.0
-        try:
-            cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
-            for row in cur:
-                oldProb[i] = row[1]
-        except:
-            continue
-        if (tmpName == 'S0-32'):
-            oldProb[i] = 0.0
-
-    #Making plot of 2D distribution of old stars only
-    py.clf()
-    binNum = 3.0
-    plOld = np.where(oldProb > 0.0)[0]
-    ploz = np.zeros(len(plOld))+10.0**0.05
-    maxR = np.max(projRtmp[plOld])+0.00001
-    minR = np.min(projRtmp[plOld])
-    binSize = (maxR - minR)/binNum
-    radLim = np.array([minR+binSize*i for i in range(binNum + 1)])
-    number = np.zeros(binNum)
-    volume = np.zeros(binNum)
-    radius2D = np.zeros(binNum)
-
-#    pdb.set_trace()
-    for i in range(binNum):
-        tmpDex = np.where((oldProb > 0.0) & (projRtmp >= radLim[i]) & (projRtmp < radLim[i+1]))[0]
-        tmpSum = oldProb[tmpDex]
-        number[i] = tmpSum.sum()
-        volume[i] = pi*(radLim[i+1]**2.0 - radLim[i]**2.0)
-        radius2D[i] = np.median(projRtmp[tmpDex])
-    densityBin = number/volume
-    numerr = np.sqrt(number)
-    err_pl = np.log10((numerr+number)/number)
-    error_density = numerr/volume
-    rho_pl = np.log10(densityBin)
-    r_pl = np.log10(radius2D)
-    rLeft = np.array([radLim[i] for i in range(binNum)])
-    py.bar(rLeft,densityBin,width=binSize,bottom=1.0,color='w')
-    py.errorbar(radius2D,densityBin,yerr=error_density,fmt='o')
-    py.plot(projRtmp[plOld],ploz,'D')
-    py.xscale('log')
-    py.yscale('log')
-    py.xlabel('Log Projected Radius (pc)')
-    py.ylabel('Log Surface Density (pc$^{-2}$)')
-    py.savefig('/u/schappell/plots/rough2D.png')
-    #pdb.set_trace()
-
-    if (updateErr == True):
-        origin_val = asciidata.open('/g/ghez/align/14_06_18/' + chainsDir + 'efit_summary.txt')
-        ori_x0e = origin_val[18][0]
-        ori_y0e = origin_val[19][0]
-        ori_vxe = origin_val[20][0]
-        ori_vye = origin_val[21][0]
-        t_0 = 2000.0 #hard coded t_0 of sgr*
-
-    drad = (rrange[1]-rrange[0])/rrange[2]
-    radCut = np.array([rrange[0] + i*drad for i in range(rrange[2])])
-    rcut = radCut * dist * cm_in_au
-    dataCut = dataCut * dist * cm_in_au
-    R2Dcut = R2Dcut * dist * cm_in_au
-
-    dgam = (grange[1]-grange[0])/grange[2]
-    gamma = np.array([grange[0] + i*dgam for i in range(grange[2])])
-    no2 = np.where(gamma != 2.0)
-    gamma = gamma[no2]
-    grange[2] = len(gamma)
-
-    lnL = np.zeros([grange[2],rrange[2]])
-
-    for i in range(len(names)):
-        if (oldProb[i] > 0.0):
-            tmpName = names[i]
-            print tmpName,oldProb[i]
-
-            pointsTab = asciidata.open(root_tmp + alnDir + points + tmpName + '.points')
-
-            time = pointsTab[0].tonumpy()
-            xp = pointsTab[1].tonumpy() * dist * cm_in_au
-            yp = pointsTab[2].tonumpy() * dist * cm_in_au
-            xerr = pointsTab[3].tonumpy()
-            yerr = pointsTab[4].tonumpy()
-
-            if (updateErr == True):
-                xerr = np.sqrt(xerr**2 + ori_x0e**2 + ((time - t_0)*ori_vxe)**2)
-                yerr = np.sqrt(yerr**2 + ori_y0e**2 + ((time - t_0)*ori_vye)**2)
-
-
-            xerr = xerr * dist * cm_in_au
-            yerr = yerr * dist * cm_in_au
-            sig2x = np.sum(xerr**2.0)
-            sig2y = np.sum(yerr**2.0)
-            ws_tx = sig2x * np.sum((time - globalt0)/xerr**2.0)
-            ws_t2x = sig2x * np.sum((time - globalt0)**2.0/xerr**2.0)
-            ws_ty = sig2y * np.sum((time - globalt0)/yerr**2.0)
-            ws_t2y = sig2y * np.sum((time - globalt0)**2.0/yerr**2.0)
-
-            ws_xi = sig2x * np.sum(xp / xerr**2.0)
-            ws_yi = sig2y * np.sum(yp / yerr**2.0)
-            ws_xi_t = sig2x * np.sum(xp * (time - globalt0) / xerr**2.0)
-            ws_yi_t = sig2y * np.sum(yp * (time - globalt0) / yerr**2.0)
-
-            for k in range(rrange[2]):
-                rmax = rcut[k]
-
-                x_tilda = (ws_xi * ws_t2x - ws_tx * ws_xi_t) / (ws_t2x - ws_tx**2.0)
-                y_tilda = (ws_yi * ws_t2y - ws_tx * ws_yi_t) / (ws_t2y - ws_ty**2.0)
-                ratio_tilda = y_tilda/x_tilda
-                zmax = math.sqrt(rmax**2.0 - ((x_tilda**2.0 + y_tilda**2.0)/(1.0 - ws_tx * ws_ty * GM / (2.0 * rmax**3.0))**2.0))
-                dz = zmax / numz
-                zp = np.array([h * dz for h in range(numz)])
-
-                #rmax = rcut[k]
-
-                #rmin = np.min(np.sqrt(xp**2 + yp**2))
-                #rtmp = np.array([rmin + h*((rmax-rmin)/numz) for h in range(numz)])
-                #accel = -1.0*GM/rtmp**3.0
-
-#                dz = math.sqrt(rmax**2.0 - np.min(xp**2.0 + yp**2.0))/numz
-#                ztmp = np.array([h*dz for h in range(numz)])
-
-                sol_x0 = np.zeros(numz)
-                sol_y0 = np.zeros(numz)
-
-                ws_x = np.zeros(numz)
-                ws_x2 = np.zeros(numz)
-                ws_x_t = np.zeros(numz)
-                ws_y = np.zeros(numz)
-                ws_y2 = np.zeros(numz)
-                ws_y_t = np.zeros(numz)
-
-                for q in range(numz):
-                    ztmp = zp[q]
-                    xfunc = lambda chi: chi*(1.0 - ws_tx**2.0*GM/(2.0*(chi**2.0 + ratio_tilda**2.0*chi**2.0 + ztmp**2.0)**(3.0/2.0))) - x_tilda
-                    sol_x0[q] = fsolve(xfunc, x_tilda)
-                    sol_y0[q] = sol_x0[q] * ratio_tilda
-                    atmp = -1.0*GM/(ztmp**2.0 * sol_x0[q]**2.0 + sol_y0[q]**2.0)**(3.0/2.0)
-                    ws_x[q] = sig2x * np.sum((xp + 0.5*(time - globalt0)**2.0*sol_x0[q]*atmp)/xerr**2.0)
-                    ws_x2[q] = sig2x * np.sum((xp + 0.5*(time - globalt0)**2.0*sol_x0[q]*atmp)**2.0/xerr**2.0)
-                    ws_x_t[q] = sig2x * np.sum((time - globalt0)*(xp + 0.5*(time - globalt0)**2.0*sol_x0[q]*atmp)/xerr**2.0)
-                    ws_y[q] = sig2y * np.sum((yp + 0.5*(time - globalt0)**2.0*sol_y0[q]*atmp)/yerr**2.0)
-                    ws_y2[q] = sig2y * np.sum((yp + 0.5*(time - globalt0)**2.0*sol_y0[q]*atmp)**2.0/yerr**2.0)
-                    ws_y_t[q] = sig2y * np.sum((time - globalt0)*(yp + 0.5*(time - globalt0)**2.0*sol_y0[q]*atmp)/yerr**2.0)
-
-#                    atmp = -1.0*GM/(np.sqrt((ztmp[q])**2.0 + xp**2.0 + yp**2.0))**3.0
-#                    ws_x[q] = sig2x * np.sum(xp*(1.0 + 0.5*(time - globalt0)**2.0*atmp)/xerr**2.0)
-#                    ws_x2[q] = sig2x * np.sum(xp**2.0*(1.0 + 0.5*(time - globalt0)**2.0*atmp)**2.0/xerr**2.0)
-#                    ws_x_t[q] = sig2x * np.sum((time - globalt0)*xp*(1.0 + 0.5*(time - globalt0)**2.0*atmp)/xerr**2.0)
-#                    ws_y[q] = sig2y * np.sum(yp*(1.0 + 0.5*(time - globalt0)**2.0*atmp)/yerr**2.0)
-#                    ws_y2[q] = sig2y * np.sum(yp**2.0*(1.0 + 0.5*(time - globalt0)**2.0*atmp)**2.0/yerr**2.0)
-#                    ws_y_t[q] = sig2y * np.sum((time - globalt0)*yp*(1.0 + 0.5*(time - globalt0)**2.0*atmp)/yerr**2.0)
-
-
-
-                likex = (ws_x2 - ws_x**2.0 - ((ws_x_t - ws_x*ws_tx)**2.0/(ws_t2x - ws_tx**2.0)))/(-2.0*sig2x)
-                likey = (ws_y2 - ws_y**2.0 - ((ws_y_t - ws_y*ws_ty)**2.0/(ws_t2y - ws_ty**2.0)))/(-2.0*sig2y)
-                bandaid = np.max(likex + likey)
-                prob_a = np.exp(likex + likey - bandaid)
-
-#                ml_x = ((ws_x * ws_t2x) - (ws_tx * ws_x_t))/(ws_t2x - ws_tx**2.0)
-#                ml_y = ((ws_y * ws_t2y) - (ws_ty * ws_y_t))/(ws_t2y - ws_ty**2.0)
-
-                #r3d_tmp = np.sqrt(ml_x**2.0 + ml_y**2.0 + ztmp**2.0)
-                r3d_tmp = np.sqrt(sol_x0**2.0 + sol_y0**2.0 + zp**2.0)
-                
-
-                for j in range(grange[2]):
-                    gtmp = gamma[j]
-                    rho_tmp = r3d_tmp**(-1.0*gtmp)
-                    norma = integrate.quad(lambda x: x**(2.0-gtmp), 0.0, rmax)
-                    normb = integrate.quad(lambda x: x**2.0 * (R2Dcut**2.0 + x**2.0)**(gtmp/-2.0), 0.0, 
-                                           math.sqrt(rmax**2.0 - R2Dcut**2.0))
-                    norm = norma[0] - normb[0]
-                    prob_z = rho_tmp/norm
-
-                    bandaid2 = np.max(np.abs(prob_z))
-                    prob_zp = prob_z/bandaid2
-
-                    prob_rcut_gam = prob_a*prob_z*dz
-
-                    #pdb.set_trace()
-                    try:
-                        lnL[j,k] += oldProb[i] * (math.log(np.sum(prob_rcut_gam)) + bandaid + math.log(bandaid2))
-                    except:
-                        pdb.set_trace()
-
-    pdb.set_trace()
-
-
-
-def forShoko(stars):
-
-    for i in range(len(stars)):
-        tmpName = str(stars[i])
-        pointsTab = asciidata.open('/g/ghez/align/14_06_18/points_nz/' + tmpName + '.points')
-        xp = pointsTab[1].tonumpy()
-        yp = pointsTab[2].tonumpy()
-
-        radius = np.sqrt(xp**2+yp**2)
-        print tmpName,np.min(radius)

@@ -31,10 +31,6 @@ from matplotlib.ticker import ScalarFormatter
 import corner as cor
 
 homeRoot = '/u/schappell/'
-plotRoot = homeRoot+'plots/'
-cRoot = homeRoot+'code/c/'
-mnoutRoot = homeRoot+'pmnOld/'
-
 
 # Several functions were taken from:
 # /ghezgroup/code/python/gcwork/polyfit/accel.py,
@@ -182,7 +178,7 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
         gcows_zero = np.array([1500.0,1500.0])
         gcows = pyfits.getdata('/u/schappell/Downloads/NIRC2 radial mask/nirc2_gcows_2010_all_mask.fits')
         gcows_dex = np.where(gcows > 0)
-        np.savetxt(cRoot+'gcows_field.dat',np.transpose([gcows_dex[1],gcows_dex[0]]),delimiter=' ')
+        np.savetxt(homeRoot+'code/c/gcows_field.dat',np.transpose([gcows_dex[1],gcows_dex[0]]),delimiter=' ')
         for ii in range(len(mag)):
             #pdb.set_trace()
             try:
@@ -736,13 +732,13 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     py.hist(xchi2r,chiBins)
     py.xlabel('Reduced X Chi^2')
     py.ylabel('Number')
-    py.savefig(plotRoot+'distXchi2.png')
+    py.savefig(homeRoot+'distXchi2.png')
 
     py.clf()
     py.hist(ychi2r,chiBins)
     py.xlabel('Reduced Y Chi^2')
     py.ylabel('Number')
-    py.savefig(plotRoot+'distYchi2.png')
+    py.savefig(homeRoot+'distYchi2.png')
 
     ###########
     #
@@ -899,7 +895,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     py.xlabel('$\sigma_{T}$')
     py.title('After')
     py.ylim([0,300])
-    py.savefig(plotRoot+'histatan.png')
+    py.savefig(homeRoot+'plots/histatan.png')
 
 
     # Lets also do parallel/perpendicular to velocity
@@ -1205,7 +1201,7 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     py.axis([9.0,18.0,8.,10000.])
     py.xlabel('K Mag')
     py.ylabel('Radial Acceleration ($\mu$as/yr$^2$)')
-    py.savefig(plotRoot+'sig3_sample.png')
+    py.savefig(homeRoot+'sig3_sample.png')
 
     pdb.set_trace()
 
@@ -1214,21 +1210,21 @@ def histAccel(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 #    py.plot(cnt[writeLatex],sigmaR[writeLatex],'o')
 #    py.xlabel('Epochs (#)')
 #    py.ylabel('Radial Acceleration (sigma)')
-#    py.savefig(plotRoot+'sigrCnt.png')
+#    py.savefig(homeRoot+'sigrCnt.png')
 
     py.clf()
     toplot = (np.where(cnt > 24))[0]
     py.errorbar(1e3*at[toplot],-1e3*ar[toplot],xerr=1e3*ate[toplot],yerr=1e3*are[toplot],fmt='.')
     py.xlabel('Tan Accel (mas/yr^2)')
     py.ylabel('Rad Accel (mas/yr^2)')
-    py.savefig(plotRoot+'epochCut_ar_at.png')
+    py.savefig(homeRoot+'plots/epochCut_ar_at.png')
 
     py.clf()
     toplot = (np.where(((sigmaR < -22.0) | ((cnt > 24) & (sigmaR < -sigma))) & (np.abs(sigmaT) < sigma)))[0]
     py.errorbar(1e3*at[toplot],-1e3*ar[toplot],xerr=1e3*ate[toplot],yerr=1e3*are[toplot],fmt='.')
     py.xlabel('Tan Accel (mas/yr^2)')
     py.ylabel('Rad Accel (mas/yr^2)')
-    py.savefig(plotRoot+'epochSigCut_ar_at.png')
+    py.savefig(homeRoot+'plots/epochSigCut_ar_at.png')
 
     py.figure(6)
     py.clf()
@@ -3226,7 +3222,7 @@ def hazGraphs():
     py.xlabel('Sigma')
     py.title('Original Error')
     py.xlim([-30,30])
-    py.savefig(plotRoot+'sigma_tan_orig.png')
+    py.savefig(homeRoot+'plots/sigma_tan_orig.png')
 
     py.clf()
     bottom_new = int(min(at/ate_new))-1
@@ -3241,7 +3237,7 @@ def hazGraphs():
     py.xlabel('Sigma')
     py.title('New Error')
     py.xlim([-30,30])
-    py.savefig(plotRoot+'sigma_tan_new.png')
+    py.savefig(homeRoot+'plots/sigma_tan_new.png')
     py.clf()
 
     py.clf()
@@ -3249,7 +3245,7 @@ def hazGraphs():
     py.plot([9,17],[3.6118e-5,3.6118e-5])
     py.xlabel('K mag')
     py.ylabel('Error in a_t')
-    py.savefig(plotRoot+'Tan_error_kmag.png')
+    py.savefig(homeRoot+'plots/Tan_error_kmag.png')
     py.clf()
     py.close('all')
 
@@ -3259,7 +3255,7 @@ def hazGraphs():
 #    py.plot(delta_pl,sigma_pl)
 #    py.xlabel('Delta Added')
 #    py.ylabel('Sigma of Distribution')
-#    py.savefig(plotRoot+'sigma_v_delta.png')
+#    py.savefig(homeRoot+'plots/sigma_v_delta.png')
     
 def into8(mag):
     middle=np.median(mag)
@@ -3622,7 +3618,7 @@ def makeNSFtable():
     py.axis([0.2,1.8,0.04,10])
     py.xlabel('Projected Radius (arcsec)')
     py.ylabel('Radial Acceleration (mas/yr$^2$)')
-    py.savefig(plotRoot+'allAccel_raccel_r.png')
+    py.savefig(homeRoot+'allAccel_raccel_r.png')
 
     py.clf()
     knownY = np.where((new!='New') & (type=='Y'))[0]
@@ -3650,7 +3646,7 @@ def makeNSFtable():
     py.xlabel('Projected Radius (arcsec)')
 #    py.ylabel('Radial Acceleration (micro-as/yr^2)')
     py.ylabel('K (mag)')
-    py.savefig(plotRoot+'allAccel_mag_r.png')
+    py.savefig(homeRoot+'allAccel_mag_r.png')
 
     imgFile='/u/ghezgroup/data/gc/09maylgs/combo/mag09maylgs_sgra_dim_kp.fits'
     sgra=[624.5,726.3]
@@ -3697,7 +3693,7 @@ def makeNSFtable():
     ax.set_xlabel('RA (arcsec)')
     ax.set_ylabel('Dec (arcsec)')
     ax.axis([2,-2,-2,2])
-    fig.savefig(plotRoot+'unknown_sample.png')
+    fig.savefig(homeRoot+'unknown_sample.png')
 
 #    outz = np.where(new == 'New')[0]
 #    names = [names[nn] for nn in outz]
@@ -3743,7 +3739,7 @@ def makeNSFtable():
     ax.yaxis.set_major_formatter(ScalarFormatter())
     py.xlabel('Projected Radius (")')
     py.ylabel('Acceleration in-the-plane-of-the-sky (mas/$yr^2$)')
-    py.savefig(plotRoot+'vzAccel_raccel_r.ps')
+    py.savefig(homeRoot+'vzAccel_raccel_r.ps')
 
     out = open(home + 'tables/rv_2015.5.tex','w')
     out.write('\\documentclass{aastex} \n')
@@ -4039,7 +4035,7 @@ def plotDelta(alnDir='14_06_18/',
     py.axis([10,17,15,60])
     py.xlabel('K Mag')
     py.ylabel('Error (micro-as/yr^2)')
-    py.savefig(plotRoot+'delta_before_after.png')
+    py.savefig(homeRoot+'delta_before_after.png')
     py.clf()
     py.close('all')
 
@@ -4278,7 +4274,7 @@ def calcInfo(starNames=['S0-1','S0-3','S0-19','S0-20','S0-16','S0-8','S0-26','S0
     legend(pl1,['In Sample'],loc=3,numpoints=1)
     py.xlabel('Gillessen a_r (sigma)')
     py.ylabel('a_rad (sigma)')
-    savefig(plotRoot+'our_gillessen_arad.png')
+    savefig(homeRoot+'our_gillessen_arad.png')
 
     py.clf()
 #    py.errorbar(gat,at*1e3,xerr=gate,yerr=ate*1e3,fmt='.')
@@ -4297,7 +4293,7 @@ def calcInfo(starNames=['S0-1','S0-3','S0-19','S0-20','S0-16','S0-8','S0-26','S0
     legend(pl1,['In Sample'],loc=3,numpoints=1)
     py.xlabel('Gillessen a_t (sigma)')
     py.ylabel('a_tan (sigma)')
-    savefig(plotRoot+'our_gillessen_atan.png')
+    savefig(homeRoot+'our_gillessen_atan.png')
 #    print ' %7s  %7s  %8s  %8s  %8s  %8s  ' %('G Name','O Name','G Sig T','G Sig R','O Sig T','O Sig R')
 #    for i in range(len(names)):
     print gar/gare,gat/gate,ar/are,at/ate
@@ -4356,7 +4352,7 @@ def twoProp15():
     ax.set_xlabel('RA (arcsec)')
     ax.set_ylabel('Dec (arcsec)')
     ax.axis([2.2,-2.2,-2.,2.])
-    fig.savefig(plotRoot+'pointings.png')
+    fig.savefig(homeRoot+'pointings.png')
 
     gamma=np.array([-1.0,-0.5,0.0,0.5,1.0,1.5])#,2.0])
     naccelo=np.array([0.0,0.1,0.2,0.4,0.9,2.2])#,5.7])
@@ -4380,7 +4376,7 @@ def twoProp15():
     py.axis([-1.1,1.8,-5,60])
     py.xlabel('Gamma')
     py.ylabel('Number of Accel. Old Stars')
-    py.savefig(plotRoot+'numaccel.png')
+    py.savefig(homeRoot+'numaccel.png')
     py.clf()
     py.close('all')
 
@@ -5774,8 +5770,8 @@ def getContourLevels(probDist,percLevels=[.997,.95,.6827]):
 
 
 def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
-    posterior = np.loadtxt(mnoutRoot+''+flag+'_.txt')#'_post_equal_weights.dat')
-    priors = np.loadtxt(mnoutRoot+''+flag+'_priors.txt')
+    posterior = np.loadtxt(homeRoot+'pmnOld/'+flag+'_.txt')#'_post_equal_weights.dat')
+    priors = np.loadtxt(homeRoot+'pmnOld/'+flag+'_priors.txt')
     gamma = posterior[:,2]*(priors[0,1] - priors[0,0]) + priors[0,0]
     alpha = posterior[:,3]*(priors[1,1] - priors[1,0]) + priors[1,0]
     delta = posterior[:,4]*(priors[2,1] - priors[2,0]) + priors[2,0]
@@ -5818,7 +5814,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
     print '99.7% interval : '+str(np.min(bins[tmpdex]))+' to '+str(np.max(bins[tmpdex+1]))
     print ' '
     ax.set_ylim(ylim)
-    py.savefig(plotRoot+''+flag+'_gamma_post.png')
+    py.savefig(homeRoot+'plots/'+flag+'_gamma_post.png')
     py.clf()
 
     hist,bins,junk=py.hist(alpha,bins=4*numbins,normed=1,weights=weights)
@@ -5846,7 +5842,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
     print '99.7% interval : '+str(np.min(bins[tmpdex]))+' to '+str(np.max(bins[tmpdex+1]))
     print ' '
     ax.set_ylim(ylim)
-    py.savefig(plotRoot+''+flag+'_alpha_post.png')
+    py.savefig(homeRoot+'plots/'+flag+'_alpha_post.png')
     py.clf()
 
     hist,bins,junk=py.hist(delta,bins=4*numbins,normed=1,weights=weights)
@@ -5874,7 +5870,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
     print '99.7% interval : '+str(np.min(bins[tmpdex]))+' to '+str(np.max(bins[tmpdex+1]))
     print ' '
     ax.set_ylim(ylim)
-    py.savefig(plotRoot+''+flag+'_delta_post.png')
+    py.savefig(homeRoot+'plots/'+flag+'_delta_post.png')
     py.clf()
 
     hist,bins,junk=py.hist(rbreak,bins=4*numbins,normed=1,weights=weights)
@@ -5902,7 +5898,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
     print '99.7% interval : '+str(np.min(bins[tmpdex]))+' to '+str(np.max(bins[tmpdex+1]))
     print ' '
     ax.set_ylim(ylim)
-    py.savefig(plotRoot+''+flag+'_rbreak_post.png')
+    py.savefig(homeRoot+'plots/'+flag+'_rbreak_post.png')
     py.clf()
 
     if (Cplot==True):
@@ -5931,7 +5927,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
         print '99.7% interval : '+str(np.min(bins[tmpdex]))+' to '+str(np.max(bins[tmpdex+1]))
         print ' '
         ax.set_ylim(ylim)
-        py.savefig(plotRoot+''+flag+'_cfactor_post.png')
+        py.savefig(homeRoot+'plots/'+flag+'_cfactor_post.png')
         py.clf()
 
 
@@ -5946,7 +5942,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
     py.contour(X,Y,hist,levels=levels, colors=('gray','k','limegreen'),linestyles=('dotted','dashed','solid',))
     py.xlabel(r'$\alpha$ (Outer Slope)')
     py.ylabel('$\gamma$ (Inner Slope)')
-    py.savefig(plotRoot+''+flag+'_gamma_alpha.png')
+    py.savefig(homeRoot+'plots/'+flag+'_gamma_alpha.png')
     print 'GAMMA AND ALPHA --------------------------'
     tmpdex = unravel_index(hist.argmax(),hist.shape)
     print 'GAMMA'
@@ -5979,7 +5975,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
     py.xlabel(r'$\delta$ (Sharpness)')
     py.ylabel('$\gamma$ (Inner Slope)')
-    py.savefig(plotRoot+''+flag+'_gamma_delta.png')
+    py.savefig(homeRoot+'plots/'+flag+'_gamma_delta.png')
     print 'GAMMA AND DELTA --------------------------'
     tmpdex = unravel_index(hist.argmax(),hist.shape)
     print 'GAMMA'
@@ -6012,7 +6008,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
     py.xlabel(r'$r_{break}$ (pc)')
     py.ylabel('$\gamma$ (Inner Slope)')
-    py.savefig(plotRoot+''+flag+'_gamma_rbreak.png')
+    py.savefig(homeRoot+'plots/'+flag+'_gamma_rbreak.png')
     print 'GAMMA AND r_BREAK --------------------------'
     tmpdex = unravel_index(hist.argmax(),hist.shape)
     print 'GAMMA'
@@ -6047,7 +6043,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
         #        py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
         py.xlabel('C Factor')
         py.ylabel('$\gamma$ (Inner Slope)')
-        py.savefig(plotRoot+''+flag+'_gamma_cfactor.png')
+        py.savefig(homeRoot+'plots/'+flag+'_gamma_cfactor.png')
         print 'GAMMA AND C FACTOR --------------------------'
         tmpdex = unravel_index(hist.argmax(),hist.shape)
         print 'GAMMA'
@@ -6080,7 +6076,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
         py.xlabel('C Factor')
         py.ylabel(r'$\alpha$ (Outer Slope)')
-        py.savefig(plotRoot+''+flag+'_alpha_cfactor.png')
+        py.savefig(homeRoot+'plots/'+flag+'_alpha_cfactor.png')
         print 'ALPHA AND C FACTOR --------------------------'
         tmpdex = unravel_index(hist.argmax(),hist.shape)
         print 'ALPHA'
@@ -6113,7 +6109,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
         py.xlabel('C Factor')
         py.ylabel(r'$\delta$ (Sharpness)')
-        py.savefig(plotRoot+''+flag+'_delta_cfactor.png')
+        py.savefig(homeRoot+'plots/'+flag+'_delta_cfactor.png')
         print 'DELTA AND C FACTOR --------------------------'
         tmpdex = unravel_index(hist.argmax(),hist.shape)
         print 'DELTA'
@@ -6146,7 +6142,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
         py.xlabel('C Factor')
         py.ylabel(r'$r_{break}$ (prc)')
-        py.savefig(plotRoot+''+flag+'_rbreak_cfactor.png')
+        py.savefig(homeRoot+'plots/'+flag+'_rbreak_cfactor.png')
         print 'r_BREAK AND C FACTOR --------------------------'
         tmpdex = unravel_index(hist.argmax(),hist.shape)
         print 'r_BREAK'
@@ -6179,7 +6175,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
     py.xlabel(r'$\delta$ (Sharpness)')
     py.ylabel(r'$\alpha$ (Outer Slope)')
-    py.savefig(plotRoot+''+flag+'_alpha_delta.png')
+    py.savefig(homeRoot+'plots/'+flag+'_alpha_delta.png')
     print 'ALPHA AND DELTA --------------------------'
     tmpdex = unravel_index(hist.argmax(),hist.shape)
     print 'ALPHA'
@@ -6212,7 +6208,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
     py.xlabel(r'$r_{break}$ (pc)')
     py.ylabel(r'$\alpha$ (Outer Slope)')
-    py.savefig(plotRoot+''+flag+'_alpha_rbreak.png')
+    py.savefig(homeRoot+'plots/'+flag+'_alpha_rbreak.png')
     print 'ALPHA AND r_BREAK --------------------------'
     tmpdex = unravel_index(hist.argmax(),hist.shape)
     print 'ALPHA'
@@ -6245,7 +6241,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 #py.contour(X,Y,hist,levels=levels, colors=('limegreen','k','gray'),linestyles=('solid','dashed','dotted'))
     py.xlabel(r'$r_{break}$ (pc)')
     py.ylabel(r'$\delta$ (Sharpness)')
-    py.savefig(plotRoot+''+flag+'_delta_rbreak.png')
+    py.savefig(homeRoot+'plots/'+flag+'_delta_rbreak.png')
     print 'DELTA AND r_BREAK --------------------------'
     tmpdex = unravel_index(hist.argmax(),hist.shape)
     print 'DELTA'
@@ -6341,7 +6337,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
                     py.ylabel(r'$\delta$ (Sharpness)')
                 #pdb.set_trace()
     #pdb.set_trace()
-    py.savefig(plotRoot+''+flag+'_pyramidPOSTER.eps',format='eps',dpi=1000)
+    py.savefig(homeRoot+'plots/'+flag+'_pyramidPOSTER.eps',format='eps',dpi=1000)
 
 
     #Make pyramid plot with 1D posteriors
@@ -6461,7 +6457,7 @@ def plotModelParam_BETA(flag='for_posterNOW',numbins=25,Cplot=True):
 
                 #pdb.set_trace()
     #pdb.set_trace()
-    py.savefig(plotRoot+''+flag+'_pyramidALL.eps',format='eps',dpi=1000)
+    py.savefig(homeRoot+'plots/'+flag+'_pyramidALL.eps',format='eps',dpi=1000)
     py.clf()
     py.close('all')
 
@@ -6493,7 +6489,7 @@ def plotGammaAlpha(file='/u/schappell/pmnOld/for_posterNOW_post_equal_weights.da
     #py.ylim([-1.75,1.5])
     py.xlabel(r'$\alpha$ (Outer Slope)')
     py.ylabel('$\gamma$ (Inner Slope)')
-    py.savefig(plotRoot+'gamma_alpha_pmn.png')
+    py.savefig(homeRoot+'plots/gamma_alpha_pmn.png')
     py.clf()
     py.close('all')
 
@@ -6521,7 +6517,7 @@ def plotGammaDelta(file='/u/schappell/pmnOld/for_posterNOW_post_equal_weights.da
     #py.ylim([-1.75,1.5])
     py.xlabel(r'$\delta$ (Sharpness)')
     py.ylabel('$\gamma$ (Inner Slope)')
-    py.savefig(plotRoot+'gamma_delta_pmn.png')
+    py.savefig(homeRoot+'plots/gamma_delta_pmn.png')
     py.clf()
     py.close('all')
 
@@ -6550,7 +6546,7 @@ def plotGamma_rbreak(file='/u/schappell/pmnOld/for_posterNOW_post_equal_weights.
     #py.ylim([-1.75,1.5])
     py.xlabel(r'$r_{break}$ (pc)')
     py.ylabel('$\gamma$ (Inner Slope)')
-    py.savefig(plotRoot+'gamma_rbreak_pmn.png')
+    py.savefig(homeRoot+'plots/gamma_rbreak_pmn.png')
     py.clf()
     py.close('all')
 
@@ -6662,7 +6658,7 @@ def multiStarPlot(starlist,fitlist=[-1],alnDir='14_06_18/',align='align/align_d_
     py.xlabel('X (arcsec)')
     py.ylabel('Y (arcsec)')
 
-    py.savefig(plotRoot+''+tag+'.png')
+    py.savefig(homeRoot+'plots/'+tag+'.png')
     py.clf()
     py.close('all')
 
@@ -6670,7 +6666,7 @@ def multiStarPlot(starlist,fitlist=[-1],alnDir='14_06_18/',align='align/align_d_
 
 def gammaHist_do_over(getOnesig=False):
     tdo = np.loadtxt('/u/schappell/Downloads/gamma.txt')
-    sch = np.loadtxt(mnoutRoot+'for_posterNOW_post_equal_weights.dat')
+    sch = np.loadtxt(homeRoot+'pmnOld/for_posterNOW_post_equal_weights.dat')
 
     tdo_gamma = tdo[:,0]
     tmp_hist = tdo[:,1]
@@ -6696,7 +6692,7 @@ def gammaHist_do_over(getOnesig=False):
         py.bar(bins[one_sig],sch_hist[one_sig],width=bin_width,color='limegreen')
     py.ylabel('Normalized Posterior')
     py.xlabel('$\gamma$')
-    py.savefig(plotRoot+'gamm_hist_tdo_over.png')
+    py.savefig(homeRoot+'gamm_hist_tdo_over.png')
     print bins
     py.clf()
     py.close('all')
@@ -6704,9 +6700,9 @@ def gammaHist_do_over(getOnesig=False):
 
 def plotMockData(gamma=-1.0,alpha=4.0,delta=4.0,r_break=0.5,R2d_cut=1.7):
 
-    tmp = np.loadtxt(cRoot+'stars_mn.dat')
+    tmp = np.loadtxt(homeRoot+'code/c/stars_mn.dat')
     pOld = tmp[:,3]
-    tmp = np.loadtxt(cRoot+'stars_r.dat')
+    tmp = np.loadtxt(homeRoot+'code/c/stars_r.dat')
     radius = tmp[:,0]
     radius /= cm_in_pc
     R2d_cut *= dist / au_in_pc
@@ -6720,7 +6716,7 @@ def plotMockData(gamma=-1.0,alpha=4.0,delta=4.0,r_break=0.5,R2d_cut=1.7):
     py.ylabel('Number')
     py.title('Gamma: '+str(gamma)+' Alpha: '+str(alpha)+' Delta: '+str(delta)+
              ' R_break:'+str(r_break)+' pc')
-    py.savefig(plotRoot+'starHist_mock_g'+str(gamma)+'_a'+str(alpha)+'_d'+str(delta)+
+    py.savefig(homeRoot+'plots/starHist_mock_g'+str(gamma)+'_a'+str(alpha)+'_d'+str(delta)+
                '_br'+str(r_break)+'_pc.png')
     bsize = np.array([bins[i+1] - bins[i] for i in range(numBins)])
    # volume = np.array([bins[i+1]**3 - bins[i]**3 for i in range(numBins)])*4.0*pi/3.0
@@ -6754,7 +6750,7 @@ def plotMockData(gamma=-1.0,alpha=4.0,delta=4.0,r_break=0.5,R2d_cut=1.7):
     py.ylabel('Log Density (pc^-3)')
     py.title('Gamma: '+str(gamma)+' Alpha: '+str(alpha)+' Delta: '+str(delta)+
              ' R_break:'+str(r_break)+' pc')
-    py.savefig(plotRoot+'roughRho_mock_g'+str(gamma)+'_a'+str(alpha)+'_d'+str(delta)+
+    py.savefig(homeRoot+'plots/roughRho_mock_g'+str(gamma)+'_a'+str(alpha)+'_d'+str(delta)+
                '_br'+str(r_break)+'_pc.png')
     py.clf()
     py.close('all')
@@ -6765,14 +6761,14 @@ def projectionDensity(numBins=70,nonRadial=1,gamma=-1.0,alpha=4.0,delta=9.0,
                       rbreak=0.5,numR=1000,maxZ=1.0,cfact=0.31,gcowsNum=4,label='',label_mock='_mock'):
 
     cfact /= (1.0 - cfact)
-    gcows_stars = np.loadtxt(cRoot+'stars_mn'+label+'.dat')
-    maser_stars = np.loadtxt(cRoot+'maser_mn'+label+'.dat')
+    gcows_stars = np.loadtxt(homeRoot+'code/c/stars_mn'+label+'.dat')
+    maser_stars = np.loadtxt(homeRoot+'code/c/maser_mn'+label+'.dat')
     pOld = gcows_stars[:,2]
 
     gcowsHist, gcows_bins = np.histogram(gcows_stars[:,0]/cm_in_au/dist,bins=gcowsNum)
 
     if (nonRadial>0):
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,1]
         gcows_cols = gcows[:,0]
         plate_scale = 0.00995
@@ -6830,15 +6826,15 @@ def projectionDensity(numBins=70,nonRadial=1,gamma=-1.0,alpha=4.0,delta=9.0,
     py.xlim([0.2,20])
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'surfaceDensity_real.png')
+    py.savefig(homeRoot+'plots/surfaceDensity_real.png')
 
-    mockData_maser = np.loadtxt(cRoot+'maser_mn'+label_mock+'.dat')
-    mockData_gcows = np.loadtxt(cRoot+'stars_mn'+label_mock+'.dat')
+    mockData_maser = np.loadtxt(homeRoot+'code/c/maser_mn'+label_mock+'.dat')
+    mockData_gcows = np.loadtxt(homeRoot+'code/c/stars_mn'+label_mock+'.dat')
 
     gcowsHist, gcows_bins = np.histogram(mockData_gcows[:,0]/cm_in_au/dist,bins=gcowsNum)
 
     if (nonRadial>0):
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,1]
         gcows_cols = gcows[:,0]
         plate_scale = 0.00995
@@ -6850,31 +6846,30 @@ def projectionDensity(numBins=70,nonRadial=1,gamma=-1.0,alpha=4.0,delta=9.0,
             gcows_surface[i] = plate_scale**2 * len(gcowsdex)
             py.plot(gcows_cols[gcowsdex],gcows_rows[gcowsdex],'.')
 
-        mockxy = np.loadtxt(cRoot+'xy_pixels'+label_mock+'.dat')
+        mockxy = np.loadtxt(homeRoot+'code/c/xy_pixels'+label_mock+'.dat')
         py.plot(mockxy[:,0],mockxy[:,1],'.')
         py.xlabel('Pixels')
         py.ylabel('Pixels')
-        py.savefig(plotRoot+'gcows_area.png')
+        py.savefig(homeRoot+'plots/gcows_area.png')
         #pdb.set_trace()
 
         x_cir = np.cos(np.arange(0.0,2.0*pi,0.01))
         y_cir = np.sin(np.arange(0.0,2.0*pi,0.01))
         py.clf()
         py.figure(figsize=(10,10))
-        gcowsDat = np.loadtxt(cRoot+'xy_as'+label+'.dat')
-        plotdex = np.where(np.sqrt((gcows_cols-1500.0)**2*plate_scale**2 + (gcows_rows-1500.0)**2*plate_scale**2) < 5.0)[0]
-        py.plot((gcows_cols[plotdex]-1500.0)*plate_scale,(gcows_rows[plotdex]-1500.0)*plate_scale,'.',color='k',label='GCOWS footprint')
+        gcowsDat = np.loadtxt(homeRoot+'code/c/xy_as'+label+'.dat')
+        py.plot((gcows_cols-1500.0)*plate_scale,(gcows_rows-1500.0)*plate_scale,'.',color='k',label='GCOWS footprint')
         py.plot(5.0*x_cir,5.0*y_cir,color='orange',linewidth=2,label='Radii limits')
         py.plot(15.0*x_cir,15.0*y_cir,color='orange',linewidth=2)
         py.plot(gcowsDat[:,0],gcowsDat[:,1],'.',color='cyan',label='Primary Sample') #GCG Sample')
-        schodelDat = np.loadtxt(cRoot+'maser_mn'+label+'.dat')
+        schodelDat = np.loadtxt(homeRoot+'code/c/maser_mn'+label+'.dat')
         py.plot(schodelDat[:,2],schodelDat[:,3],'.',color='gray',label=r'Supplementary Sample') #Sch$\ddot{o}$del Sample')
         py.xlim([-15,15])
         py.ylim([-15,15])
         py.legend(numpoints=1,loc=1)
         py.xlabel('RA (arcsec)')
         py.ylabel('Dec (arcsec)')
-        py.savefig(plotRoot+'data_xy.png')
+        py.savefig(homeRoot+'plots/data_xy.png')
 
 
     else:
@@ -6902,7 +6897,7 @@ def projectionDensity(numBins=70,nonRadial=1,gamma=-1.0,alpha=4.0,delta=9.0,
     #py.xlim([0.01,20])
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'surfaceDensity_mock.png')
+    py.savefig(homeRoot+'plots/surfaceDensity_mock.png')
     py.clf()
     py.close('all')
 
@@ -6940,7 +6935,7 @@ def projectRhoEnvelope(numBins=70,nonRadial=1,numR=50,maxZ=1.0,gcowsNum=8,datLab
     gcowsHist, gcows_bins = np.histogram(gcows_stars[:,0]/cm_in_au/dist,bins=gcows_bins,weights=gcows_stars[:,3])
 
     if (nonRadial>0):
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,1]
         gcows_cols = gcows[:,0]
         plate_scale = 0.00995
@@ -6987,7 +6982,7 @@ def projectRhoEnvelope(numBins=70,nonRadial=1,numR=50,maxZ=1.0,gcowsNum=8,datLab
     py.ylim([0.5,20])
     py.xlabel('Radius (arcsec)')
     py.ylabel("Surface Density K' > 15.5 mag (arcsec$^{-2}$)")
-    py.savefig(plotRoot+'surfaceDensity_oneSigma.png')
+    py.savefig(homeRoot+'plots/surfaceDensity_oneSigma.png')
     py.clf()
     py.close('all')
 
@@ -7008,7 +7003,7 @@ def projectRhoEnvelopeSingle(numBins=4,nonRadial=1,numR=500,maxZ=1.0,datLabel=''
     gcowsHist, gcows_bins = np.histogram(gcows_stars[:,0]/cm_in_au/dist,bins=numBins)
 
     if (nonRadial>0):
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,1]
         gcows_cols = gcows[:,0]
         plate_scale = 0.00995
@@ -7091,7 +7086,7 @@ def projectRhoEnvelopeSingle(numBins=4,nonRadial=1,numR=500,maxZ=1.0,datLabel=''
     py.ylim([0.4,10])
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'surfaceDensity_SINGLE_oneSigma.png')
+    py.savefig(homeRoot+'plots/surfaceDensity_SINGLE_oneSigma.png')
     py.clf()
     py.close('all')
 
@@ -7157,7 +7152,7 @@ def only_projDen(numBins=70,alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateE
         gcowsHist, gcows_bins = np.histogram(r2d_accel,bins=gcowsNum)
 
         if (nonRadial>0):
-            gcows = np.loadtxt(cRoot+'gcows_field.dat')
+            gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
             gcows_rows = gcows[:,1]
             gcows_cols = gcows[:,0]
             plate_scale = 0.00995
@@ -7186,7 +7181,7 @@ def only_projDen(numBins=70,alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateE
         py.legend()
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'surfaceDensity_only_real.png')
+    py.savefig(homeRoot+'plots/surfaceDensity_only_real.png')
 
     py.clf()
     bins = np.array([6.0+0.5*i for i in range(29)])
@@ -7199,7 +7194,7 @@ def only_projDen(numBins=70,alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateE
         py.ylabel('Number stars (Normalized to GCOWS < 15.5 mag)')
 
     py.xlabel("K' (mag)")
-    py.savefig(plotRoot+'KLF_hist.png')
+    py.savefig(homeRoot+'plots/KLF_hist.png')
     py.clf()
     py.close('all')
         
@@ -7208,7 +7203,7 @@ def only_projDen(numBins=70,alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateE
 
 
 def combinedMNhist(gamma,flag):
-    histInfo = np.loadtxt(mnoutRoot+''+flag+'_hist_bins.dat')
+    histInfo = np.loadtxt(homeRoot+'pmnOld/'+flag+'_hist_bins.dat')
     middle = histInfo[:,0]
     number = histInfo[:,1]
 
@@ -7221,36 +7216,36 @@ def combinedMNhist(gamma,flag):
     py.plot([-3,2],[levels[1],levels[1]],color='gray')
     py.plot([-3,2],[levels[2],levels[2]],color='k')
 
-    py.savefig(plotRoot+'gammaHist_'+flag+'.png')
+    py.savefig(homeRoot+'plots/gammaHist_'+flag+'.png')
     py.clf()
     py.close('all')
 
 
 
 def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rcut=1.7):
-    stats1 = np.loadtxt(mnoutRoot+'broken_g'+str(g1)+'_a'+str(a)+'_d'+
+    stats1 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g1)+'_a'+str(a)+'_d'+
                         str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                         str(Rcut)+'arcsec_meanG_maxLG_evid.dat')
-    stats2 = np.loadtxt(mnoutRoot+'broken_g'+str(g2)+'_a'+str(a)+'_d'+
+    stats2 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g2)+'_a'+str(a)+'_d'+
                         str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                         str(Rcut)+'arcsec_meanG_maxLG_evid.dat')
-    stats3 = np.loadtxt(mnoutRoot+'broken_g'+str(g3)+'_a'+str(a)+'_d'+
+    stats3 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g3)+'_a'+str(a)+'_d'+
                         str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                         str(Rcut)+'arcsec_meanG_maxLG_evid.dat')
-    stats4 = np.loadtxt(mnoutRoot+'broken_g'+str(g4)+'_a'+str(a)+'_d'+
+    stats4 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g4)+'_a'+str(a)+'_d'+
                         str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                         str(Rcut)+'arcsec_meanG_maxLG_evid.dat')
 
-    info1 = np.loadtxt(mnoutRoot+'broken_g'+str(g1)+'_a'+str(a)+'_d'+
+    info1 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g1)+'_a'+str(a)+'_d'+
                        str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                        str(Rcut)+'arcsec_hist_gamma_r2d_3d_logar_bins.dat')
-    info2 = np.loadtxt(mnoutRoot+'broken_g'+str(g2)+'_a'+str(a)+'_d'+
+    info2 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g2)+'_a'+str(a)+'_d'+
                        str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                        str(Rcut)+'arcsec_hist_gamma_r2d_3d_logar_bins.dat')
-    info3 = np.loadtxt(mnoutRoot+'broken_g'+str(g3)+'_a'+str(a)+'_d'+
+    info3 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g3)+'_a'+str(a)+'_d'+
                        str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                        str(Rcut)+'arcsec_hist_gamma_r2d_3d_logar_bins.dat')
-    info4 = np.loadtxt(mnoutRoot+'broken_g'+str(g4)+'_a'+str(a)+'_d'+
+    info4 = np.loadtxt(homeRoot+'pmnOld/broken_g'+str(g4)+'_a'+str(a)+'_d'+
                        str(d)+'_br'+str(br)+'_nStar'+str(numS)+'_Rcut'+
                        str(Rcut)+'arcsec_hist_gamma_r2d_3d_logar_bins.dat')
 
@@ -7266,7 +7261,7 @@ def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rc
     py.legend()
     py.xlabel('Evidence')
     py.ylabel('Normalized Frequency')
-    py.savefig(plotRoot+'compareMockSets_evidence.png')
+    py.savefig(homeRoot+'plots/compareMockSets_evidence.png')
 
     py.clf()
     py.plot(info1[:,0],info1[:,1]/np.sum(info1[:,1]),linewidth=1.5,label=label1)
@@ -7276,7 +7271,7 @@ def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rc
     py.legend(loc=2)
     py.xlabel(r'$\gamma$ (Inner Slope)')
     py.ylabel('Combined Normalized Posterior')
-    py.savefig(plotRoot+'compareMockSets_gamma.png')
+    py.savefig(homeRoot+'plots/compareMockSets_gamma.png')
 
     py.clf()
     a,b,c=py.hist(info1[:,2]/(dist*cm_in_au),weights=info1[:,3]/100,label=label1,histtype='step',linewidth=1.5)
@@ -7288,7 +7283,7 @@ def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rc
     py.legend(loc=2)
     py.xlabel('R2d (arcsec)')
     py.ylabel('Number Stars')
-    py.savefig(plotRoot+'compareMockSets_R2d.png')
+    py.savefig(homeRoot+'plots/compareMockSets_R2d.png')
 
     py.clf()
     #b = np.array([0.0,0.01,0.025,0.05,0.075,0.1,0.2,0.4,0.6,0.8,1.0])
@@ -7306,7 +7301,7 @@ def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rc
     py.ylim([0,10])
     py.xlabel('r 3D (pc)')
     py.ylabel('Number Stars')
-    py.savefig(plotRoot+'compareMockSets_r3d.png')
+    py.savefig(homeRoot+'plots/compareMockSets_r3d.png')
 
     py.clf()
     py.close('all')
@@ -7315,7 +7310,7 @@ def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rc
   #  py.legend()
   #  py.xlabel('a_r')
   #  py.ylabel('Number')
-  #  py.savefig(plotRoot+'compareMockSets_ar.png')
+  #  py.savefig(homeRoot+'plots/compareMockSets_ar.png')
   #  py.clf()
 
 
@@ -7324,8 +7319,8 @@ def compareMocksets(g1=-1.0,g2=-0.5,g3=-0.1,g4=1.0,a=6.0,d=2.0,br=0.5,numS=27,Rc
 def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',label1='W/ Accel',
                    file2='data_mthread_NOACCEL_free_maser_cuts_5.0_15.0arcsec',label2='W/o Accel',numBins=50):
 
-    posterior1 = np.loadtxt(mnoutRoot+''+file1+'_.txt')
-    priors1 = np.loadtxt(mnoutRoot+''+file1+'_priors.txt')
+    posterior1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_.txt')
+    priors1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_priors.txt')
     gamma1 = posterior1[:,2]*(priors1[0,1] - priors1[0,0]) + priors1[0,0]
     alpha1 = posterior1[:,3]*(priors1[1,1] - priors1[1,0]) + priors1[1,0]
     delta1 = posterior1[:,4]*(priors1[2,1] - priors1[2,0]) + priors1[2,0]
@@ -7333,8 +7328,8 @@ def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',lab
     #cfact1 = posterior1[:,6]
     weights1 = posterior1[:,0]
 
-    posterior2 = np.loadtxt(mnoutRoot+''+file2+'_.txt')
-    priors2 = np.loadtxt(mnoutRoot+''+file2+'_priors.txt')
+    posterior2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_.txt')
+    priors2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_priors.txt')
     gamma2 = posterior2[:,2]*(priors2[0,1] - priors2[0,0]) + priors2[0,0]
     alpha2 = posterior2[:,3]*(priors2[1,1] - priors2[1,0]) + priors2[1,0]
     delta2 = posterior2[:,4]*(priors2[2,1] - priors2[2,0]) + priors2[2,0]
@@ -7351,7 +7346,7 @@ def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',lab
     py.ylabel('Normalized Posterior',fontsize=10)
     py.xticks(fontsize=14)
     py.yticks(fontsize=14)
-    py.savefig(plotRoot+'compareTwoPosts_gamma.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_gamma.png')
 
     py.clf()
     py.hist(alpha1,bins=numBins,normed=1,weights=weights1,histtype='step',linewidth=2,label=label1)
@@ -7359,7 +7354,7 @@ def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',lab
     py.legend(loc=4)
     py.xlabel(r'$\alpha$ (Outer Slope)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'compareTwoPosts_alpha.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_alpha.png')
 
     py.clf()
     py.hist(delta1,bins=numBins,normed=1,weights=weights1,histtype='step',linewidth=2,label=label1)
@@ -7367,7 +7362,7 @@ def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',lab
     py.legend()
     py.xlabel(r'$\delta$ (Sharpness)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'compareTwoPosts_delta.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_delta.png')
 
     py.clf()
     py.hist(rbreak1,bins=numBins,normed=1,weights=weights1,histtype='step',linewidth=2,label=label1)
@@ -7375,15 +7370,15 @@ def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',lab
     py.legend(loc=2)
     py.xlabel(r'$r_{break}$ (pc)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'compareTwoPosts_rbreak.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_rbreak.png')
 
-#py.clf()
-    #py.hist(cfact1,bins=numBins,normed=1,weights=weights1,histtype='step',linewidth=2,label=label1)
-    #py.hist(cfact2,bins=numBins,normed=1,weights=weights2,histtype='step',linewidth=2,label=label2,ls='dashed')
-    #py.legend()
-    #py.xlabel(r'C Factor')
-    #py.ylabel('Normalized Posterior')
-    #    py.savefig(plotRoot+'compareTwoPosts_cfact.png')
+    py.clf()
+    py.hist(cfact1,bins=numBins,normed=1,weights=weights1,histtype='step',linewidth=2,label=label1)
+    py.hist(cfact2,bins=numBins,normed=1,weights=weights2,histtype='step',linewidth=2,label=label2,ls='dashed')
+    py.legend()
+    py.xlabel(r'C Factor')
+    py.ylabel('Normalized Posterior')
+    py.savefig(homeRoot+'plots/compareTwoPosts_cfact.png')
     py.clf()
     py.close('all')
 
@@ -7391,8 +7386,8 @@ def compareTwoPost(file1='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',lab
 
 def compareTD(file='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',numBins=50,cfact=True):
 
-    posterior1 = np.loadtxt(mnoutRoot+''+file+'_post_equal_weights.dat')
-    priors1 = np.loadtxt(mnoutRoot+''+file+'_priors.txt')
+    posterior1 = np.loadtxt(homeRoot+'pmnOld/'+file+'_post_equal_weights.dat')
+    priors1 = np.loadtxt(homeRoot+'pmnOld/'+file+'_priors.txt')
     gamma1 = posterior1[:,0]*(priors1[0,1] - priors1[0,0]) + priors1[0,0]
     if (cfact==True):
         weights1 = posterior1[:,5]
@@ -7414,7 +7409,7 @@ def compareTD(file='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',numBins=5
     py.legend(loc=2)
     py.xlabel(r'$\gamma$ (Inner Slope)',fontsize=10)
     py.ylabel('Normalized Posterior',fontsize=10)
-    py.savefig(plotRoot+'compareTDO_gamma.png')
+    py.savefig(homeRoot+'plots/compareTDO_gamma.png')
     py.clf()
     py.close('all')
     pdb.set_trace()
@@ -7560,8 +7555,8 @@ def ar_r2d_sample_limits(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=
     py.ylabel(r'$|$a$_R|$ (km/s/yr)')
     #py.title('Acceleration Detections & Upper Limits')
 
-    posterior1 = np.loadtxt(mnoutRoot+''+file1+'_post_equal_weights.dat')
-    priors1 = np.loadtxt(mnoutRoot+''+file1+'_priors.txt')
+    posterior1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_post_equal_weights.dat')
+    priors1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_priors.txt')
     gamma1 = posterior1[:,0]*(priors1[0,1] - priors1[0,0]) + priors1[0,0]
     alpha1 = posterior1[:,1]*(priors1[1,1] - priors1[1,0]) + priors1[1,0]
     delta1 = posterior1[:,2]*(priors1[2,1] - priors1[2,0]) + priors1[2,0]
@@ -7569,8 +7564,8 @@ def ar_r2d_sample_limits(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=
     cfact1 = posterior1[:,4]
     weights1 = posterior1[:,5]
 
-    posterior2 = np.loadtxt(mnoutRoot+''+file2+'_post_equal_weights.dat')
-    priors2 = np.loadtxt(mnoutRoot+''+file2+'_priors.txt')
+    posterior2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_post_equal_weights.dat')
+    priors2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_priors.txt')
     gamma2 = posterior2[:,0]*(priors2[0,1] - priors2[0,0]) + priors2[0,0]
     alpha2 = posterior2[:,1]*(priors2[1,1] - priors2[1,0]) + priors2[1,0]
     delta2 = posterior2[:,2]*(priors2[2,1] - priors2[2,0]) + priors2[2,0]
@@ -7584,7 +7579,7 @@ def ar_r2d_sample_limits(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=
     py.legend(loc=2)
     py.xlabel(r'$\gamma$ (Inner Slope)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'ar_r2d_sample_reported_limits_compare_gamma.png')
+    py.savefig(homeRoot+'plots/ar_r2d_sample_reported_limits_compare_gamma.png')
     py.clf()
     py.close('all')
     #pdb.set_trace()
@@ -7855,12 +7850,12 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
     #ar = ar[pdex]
     #are = are[pdex]
         oldProb = oldProb[pdex]
-    #np.savetxt(cRoot+'stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
+    #np.savetxt(homeRoot+'code/c/stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
 
     #Rcut *= dist / au_in_pc #Rcut now in pc
     #pdb.set_trace()
 
-    #mnRoot = mnoutRoot+'data'+label
+    #mnRoot = homeRoot+'pmnOld/data'+label
     #if ((situation == 2) | (situation == 4)):
     #    mnRoot += '_fixed_a'+str(mnAlpha)+'_d'+str(mnDelta)+'_br'+str(mnBreak)+'pc'
     #else:
@@ -7878,7 +7873,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
     #outerCut *= dist / au_in_pc
     #innerCut *= dist / au_in_pc
 
-        maserInfo = np.loadtxt(cRoot+'maser_mn.dat')
+        maserInfo = np.loadtxt(homeRoot+'code/c/maser_mn.dat')
 
         r2d_m = maserInfo[:,0]
         oldProb_m = maserInfo[:,1]
@@ -7888,7 +7883,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
         sigma_m = np.sqrt(hist_m)
         middle_m = np.array([(bins_m[i+1] +bins_m[i])/2.0 for i in range(len(hist_m))])
         surface_area_m = np.array([bins_m[i+1]**2 - bins_m[i]**2 for i in range(len(hist_m))])*pi
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,0]
         gcows_cols = gcows[:,1]
         plate_scale = 0.00995
@@ -7906,7 +7901,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
         middle = np.array([(bins[i+1] +bins[i])/2.0 for i in range(len(hist))])
 
     else:
-        schodelInfo = np.loadtxt(cRoot+'onlySchodel_mn.dat')
+        schodelInfo = np.loadtxt(homeRoot+'code/c/onlySchodel_mn.dat')
         r2d = schodelInfo[:,0] / dist / cm_in_au
         oldProb = schodelInfo[:,1]
         hist,bins = np.histogram(r2d,bins=numBins,weights=oldProb)
@@ -8175,7 +8170,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     schodelHist,bins = np.histogram(R2d_schodel)
     gcowsHist,gcows_bins = np.histogram(r2d,bins=bins)
 
-    gcows = np.loadtxt(cRoot+'gcows_field.dat')
+    gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
     gcows_rows = gcows_dex[0]
     gcows_cols = gcows_dex[1]
     gcows_R = np.sqrt((gcows_rows-1500.0)**2 + (gcows_cols-1500.0)**2)*plate_scale
@@ -8192,7 +8187,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     py.errorbar(schodel_middle,schodelHist/gcows_surface,yerr=np.sqrt(schodelHist)/gcows_surface,fmt='ob')
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'overlap_surface_density.png')
+    py.savefig(homeRoot+'plots/overlap_surface_density.png')
 
     py.clf()
     bins = np.array([6.0+0.5*i for i in range(29)])
@@ -8201,7 +8196,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     py.legend(loc=2)
     py.xlabel("K' (mag)")
     py.ylabel('Number stars')
-    py.savefig(plotRoot+'overlap_KLF.png')
+    py.savefig(homeRoot+'plots/overlap_KLF.png')
     py.clf()
     py.close('all')
 
@@ -8343,8 +8338,8 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
 
 
 
-    posterior1 = np.loadtxt(mnoutRoot+''+file1+'_post_equal_weights.dat')
-    priors1 = np.loadtxt(mnoutRoot+''+file1+'_priors.txt')
+    posterior1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_post_equal_weights.dat')
+    priors1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_priors.txt')
     gamma1 = posterior1[:,0]*(priors1[0,1] - priors1[0,0]) + priors1[0,0]
     alpha1 = posterior1[:,1]*(priors1[1,1] - priors1[1,0]) + priors1[1,0]
     delta1 = posterior1[:,2]*(priors1[2,1] - priors1[2,0]) + priors1[2,0]
@@ -8352,8 +8347,8 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
     cfact1 = posterior1[:,4]
     weights1 = posterior1[:,5]
 
-    posterior2 = np.loadtxt(mnoutRoot+''+file2+'_post_equal_weights.dat')
-    priors2 = np.loadtxt(mnoutRoot+''+file2+'_priors.txt')
+    posterior2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_post_equal_weights.dat')
+    priors2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_priors.txt')
     gamma2 = posterior2[:,0]*(priors2[0,1] - priors2[0,0]) + priors2[0,0]
     alpha2 = posterior2[:,1]*(priors2[1,1] - priors2[1,0]) + priors2[1,0]
     delta2 = posterior2[:,2]*(priors2[2,1] - priors2[2,0]) + priors2[2,0]
@@ -8367,7 +8362,7 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
     py.legend()
     py.xlabel(r'$\gamma$ (Inner Slope)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'compareTwoPosts_gamma_AND_ar_vs_r2d.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_gamma_AND_ar_vs_r2d.png')
     py.clf()
     py.close('all')
 
@@ -8564,12 +8559,12 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
     #ar = ar[pdex]
     #are = are[pdex]
         oldProb = oldProb[pdex]
-    #np.savetxt(cRoot+'stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
+    #np.savetxt(homeRoot+'code/c/stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
 
     #Rcut *= dist / au_in_pc #Rcut now in pc
     #pdb.set_trace()
 
-    #mnRoot = mnoutRoot+'data'+label
+    #mnRoot = homeRoot+'pmnOld/data'+label
     #if ((situation == 2) | (situation == 4)):
     #    mnRoot += '_fixed_a'+str(mnAlpha)+'_d'+str(mnDelta)+'_br'+str(mnBreak)+'pc'
     #else:
@@ -8587,7 +8582,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
     #outerCut *= dist / au_in_pc
     #innerCut *= dist / au_in_pc
 
-        maserInfo = np.loadtxt(cRoot+'maser_mn.dat')
+        maserInfo = np.loadtxt(homeRoot+'code/c/maser_mn.dat')
 
         r2d_m = maserInfo[:,0]
         oldProb_m = maserInfo[:,1]
@@ -8597,7 +8592,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
         sigma_m = np.sqrt(hist_m)
         middle_m = np.array([(bins_m[i+1] +bins_m[i])/2.0 for i in range(len(hist_m))])
         surface_area_m = np.array([bins_m[i+1]**2 - bins_m[i]**2 for i in range(len(hist_m))])*pi
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,0]
         gcows_cols = gcows[:,1]
         plate_scale = 0.00995
@@ -8615,7 +8610,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
         middle = np.array([(bins[i+1] +bins[i])/2.0 for i in range(len(hist))])
 
     else:
-        schodelInfo = np.loadtxt(cRoot+'onlySchodel_mn.dat')
+        schodelInfo = np.loadtxt(homeRoot+'code/c/onlySchodel_mn.dat')
         r2d = schodelInfo[:,0] / dist / cm_in_au
         oldProb = schodelInfo[:,1]
         hist,bins = np.histogram(r2d,bins=numBins,weights=oldProb)
@@ -8787,7 +8782,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     schodelHist,bins = np.histogram(R2d_schodel)
     gcowsHist,gcows_bins = np.histogram(r2d,bins=bins)
 
-    gcows = np.loadtxt(cRoot+'gcows_field.dat')
+    gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
     gcows_rows = gcows_dex[0]
     gcows_cols = gcows_dex[1]
     gcows_R = np.sqrt((gcows_rows-1500.0)**2 + (gcows_cols-1500.0)**2)*plate_scale
@@ -8804,7 +8799,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     py.errorbar(schodel_middle,schodelHist/gcows_surface,yerr=np.sqrt(schodelHist)/gcows_surface,fmt='ob')
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'overlap_surface_density.png')
+    py.savefig(homeRoot+'plots/overlap_surface_density.png')
 
     py.clf()
     bins = np.array([6.0+0.5*i for i in range(29)])
@@ -8813,7 +8808,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     py.legend(loc=2)
     py.xlabel("K' (mag)")
     py.ylabel('Number stars')
-    py.savefig(plotRoot+'overlap_KLF.png')
+    py.savefig(homeRoot+'plots/overlap_KLF.png')
     py.clf()
     py.close('all')
 
@@ -8955,8 +8950,8 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
 
 
 
-    posterior1 = np.loadtxt(mnoutRoot+''+file1+'_post_equal_weights.dat')
-    priors1 = np.loadtxt(mnoutRoot+''+file1+'_priors.txt')
+    posterior1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_post_equal_weights.dat')
+    priors1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_priors.txt')
     gamma1 = posterior1[:,0]*(priors1[0,1] - priors1[0,0]) + priors1[0,0]
     alpha1 = posterior1[:,1]*(priors1[1,1] - priors1[1,0]) + priors1[1,0]
     delta1 = posterior1[:,2]*(priors1[2,1] - priors1[2,0]) + priors1[2,0]
@@ -8964,8 +8959,8 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
     cfact1 = posterior1[:,4]
     weights1 = posterior1[:,5]
 
-    posterior2 = np.loadtxt(mnoutRoot+''+file2+'_post_equal_weights.dat')
-    priors2 = np.loadtxt(mnoutRoot+''+file2+'_priors.txt')
+    posterior2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_post_equal_weights.dat')
+    priors2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_priors.txt')
     gamma2 = posterior2[:,0]*(priors2[0,1] - priors2[0,0]) + priors2[0,0]
     alpha2 = posterior2[:,1]*(priors2[1,1] - priors2[1,0]) + priors2[1,0]
     delta2 = posterior2[:,2]*(priors2[2,1] - priors2[2,0]) + priors2[2,0]
@@ -8979,7 +8974,7 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
     py.legend()
     py.xlabel(r'$\gamma$ (Inner Slope)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'compareTwoPosts_gamma_AND_ar_vs_r2d.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_gamma_AND_ar_vs_r2d.png')
     py.clf()
     py.close('all')
 
@@ -9176,12 +9171,12 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
     #ar = ar[pdex]
     #are = are[pdex]
         oldProb = oldProb[pdex]
-    #np.savetxt(cRoot+'stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
+    #np.savetxt(homeRoot+'code/c/stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
 
     #Rcut *= dist / au_in_pc #Rcut now in pc
     #pdb.set_trace()
 
-    #mnRoot = mnoutRoot+'data'+label
+    #mnRoot = homeRoot+'pmnOld/data'+label
     #if ((situation == 2) | (situation == 4)):
     #    mnRoot += '_fixed_a'+str(mnAlpha)+'_d'+str(mnDelta)+'_br'+str(mnBreak)+'pc'
     #else:
@@ -9199,7 +9194,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
     #outerCut *= dist / au_in_pc
     #innerCut *= dist / au_in_pc
 
-        maserInfo = np.loadtxt(cRoot+'maser_mn.dat')
+        maserInfo = np.loadtxt(homeRoot+'code/c/maser_mn.dat')
 
         r2d_m = maserInfo[:,0]
         oldProb_m = maserInfo[:,1]
@@ -9209,7 +9204,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
         sigma_m = np.sqrt(hist_m)
         middle_m = np.array([(bins_m[i+1] +bins_m[i])/2.0 for i in range(len(hist_m))])
         surface_area_m = np.array([bins_m[i+1]**2 - bins_m[i]**2 for i in range(len(hist_m))])*pi
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,0]
         gcows_cols = gcows[:,1]
         plate_scale = 0.00995
@@ -9227,7 +9222,7 @@ def PBPL_lsq(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='
         middle = np.array([(bins[i+1] +bins[i])/2.0 for i in range(len(hist))])
 
     else:
-        schodelInfo = np.loadtxt(cRoot+'onlySchodel_mn.dat')
+        schodelInfo = np.loadtxt(homeRoot+'code/c/onlySchodel_mn.dat')
         r2d = schodelInfo[:,0] / dist / cm_in_au
         oldProb = schodelInfo[:,1]
         hist,bins = np.histogram(r2d,bins=numBins,weights=oldProb)
@@ -9496,7 +9491,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     schodelHist,bins = np.histogram(R2d_schodel)
     gcowsHist,gcows_bins = np.histogram(r2d,bins=bins)
 
-    gcows = np.loadtxt(cRoot+'gcows_field.dat')
+    gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
     gcows_rows = gcows_dex[0]
     gcows_cols = gcows_dex[1]
     gcows_R = np.sqrt((gcows_rows-1500.0)**2 + (gcows_cols-1500.0)**2)*plate_scale
@@ -9513,7 +9508,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     py.errorbar(schodel_middle,schodelHist/gcows_surface,yerr=np.sqrt(schodelHist)/gcows_surface,fmt='ob')
     py.xlabel('Radius (arcsec)')
     py.ylabel('Surface Density (arcsec$^{-2}$)')
-    py.savefig(plotRoot+'overlap_surface_density.png')
+    py.savefig(homeRoot+'plots/overlap_surface_density.png')
 
     py.clf()
     bins = np.array([6.0+0.5*i for i in range(29)])
@@ -9522,7 +9517,7 @@ def GCOWS_schodel_overlap(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr
     py.legend(loc=2)
     py.xlabel("K' (mag)")
     py.ylabel('Number stars')
-    py.savefig(plotRoot+'overlap_KLF.png')
+    py.savefig(homeRoot+'plots/overlap_KLF.png')
     py.clf()
     py.close('all')
 
@@ -9664,8 +9659,8 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
 
 
 
-    posterior1 = np.loadtxt(mnoutRoot+''+file1+'_post_equal_weights.dat')
-    priors1 = np.loadtxt(mnoutRoot+''+file1+'_priors.txt')
+    posterior1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_post_equal_weights.dat')
+    priors1 = np.loadtxt(homeRoot+'pmnOld/'+file1+'_priors.txt')
     gamma1 = posterior1[:,0]*(priors1[0,1] - priors1[0,0]) + priors1[0,0]
     alpha1 = posterior1[:,1]*(priors1[1,1] - priors1[1,0]) + priors1[1,0]
     delta1 = posterior1[:,2]*(priors1[2,1] - priors1[2,0]) + priors1[2,0]
@@ -9673,8 +9668,8 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
     cfact1 = posterior1[:,4]
     weights1 = posterior1[:,5]
 
-    posterior2 = np.loadtxt(mnoutRoot+''+file2+'_post_equal_weights.dat')
-    priors2 = np.loadtxt(mnoutRoot+''+file2+'_priors.txt')
+    posterior2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_post_equal_weights.dat')
+    priors2 = np.loadtxt(homeRoot+'pmnOld/'+file2+'_priors.txt')
     gamma2 = posterior2[:,0]*(priors2[0,1] - priors2[0,0]) + priors2[0,0]
     alpha2 = posterior2[:,1]*(priors2[1,1] - priors2[1,0]) + priors2[1,0]
     delta2 = posterior2[:,2]*(priors2[2,1] - priors2[2,0]) + priors2[2,0]
@@ -9688,7 +9683,7 @@ def IAU16_proc(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align
     py.legend()
     py.xlabel(r'$\gamma$ (Inner Slope)')
     py.ylabel('Normalized Posterior')
-    py.savefig(plotRoot+'compareTwoPosts_gamma_AND_ar_vs_r2d.png')
+    py.savefig(homeRoot+'plots/compareTwoPosts_gamma_AND_ar_vs_r2d.png')
     py.clf()
     py.close('all')
 
@@ -9806,7 +9801,7 @@ def rho_v_radius(posteriorFile,priorsFile,max_r=1.0,numr=100,mass_max=1e6,gc_g=1
     py.xlim([np.min(radius),max_r])
     py.xlabel('Radius (pc)')
     py.ylabel(r'Density ($M_{\odot}$/pc$^3$)')
-    py.savefig(plotRoot+'rho_vs_r_wgc.png')
+    py.savefig(homeRoot+'plots/rho_vs_r_wgc.png')
     py.clf()
     py.close('all')
 
@@ -9851,8 +9846,8 @@ def mass_in_radius(posteriorFile,priorsFile,max_r=1.0,mass_max=1e6,m_radius=0.01
     py.clf()
     fig=py.figure()
 #pdb.set_trace()
-    hist,bins,junk=py.hist(rho,bins=50000,normed=1,weights=weights)
-    py.xlim([0,100])
+    hist,bins,junk=py.hist(rho,bins=500,normed=1,weights=weights)
+    py.xlim([0,60000])
     py.ylabel('Weighted Posterior')
     #center, lower, higher = getCenterSigma(rho, weights=weights)
     levels = getContourLevels(hist)
@@ -9873,7 +9868,7 @@ def mass_in_radius(posteriorFile,priorsFile,max_r=1.0,mass_max=1e6,m_radius=0.01
 #py.plot([center,center],ylim,linewidth=2.0,color='red')
     ax.set_ylim(ylim)
     py.xlabel('Extended Mass Interior to '+str(m_radius)+' pc ($M_{\odot}$)')
-    fig.savefig(plotRoot+'mass_int_'+str(m_radius)+'_pc.png')
+    fig.savefig(homeRoot+'plots/mass_int_'+str(m_radius)+'_pc.png')
     fig.clf()
     pdb.set_trace()
 
@@ -9938,7 +9933,7 @@ def mass_loss(posteriorFile,priorsFile,max_r=1.0,mass_max=1e6,gamma2=1.75):
     ax.set_ylim(ylim)
     py.xlim([-10,15])
     py.xlabel('Mass deficiency ($M_{cusp}$ - $M_{broken}$) $10^5 M_{\odot}$')
-    fig.savefig(plotRoot+'mass_loss.png')
+    fig.savefig(homeRoot+'plots/mass_loss.png')
     fig.clf()
 
 
@@ -9947,8 +9942,8 @@ def mass_loss(posteriorFile,priorsFile,max_r=1.0,mass_max=1e6,gamma2=1.75):
 
 def envelope_3d(mnlabel='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',min_r=0.001,max_r=2.0,numr=100,norm=1e6,norm_r=1.0):
 
-    posterior = np.loadtxt(mnoutRoot+''+mnlabel+'_post_equal_weights.dat')
-    priors = np.loadtxt(mnoutRoot+''+mnlabel+'_priors.txt')
+    posterior = np.loadtxt(homeRoot+'pmnOld/'+mnlabel+'_post_equal_weights.dat')
+    priors = np.loadtxt(homeRoot+'pmnOld/'+mnlabel+'_priors.txt')
     gamma_array = posterior[:,0]*(priors[0,1] - priors[0,0]) + priors[0,0]
     alpha_array = posterior[:,1]*(priors[1,1] - priors[1,0]) + priors[1,0]
     delta_array = posterior[:,2]*(priors[2,1] - priors[2,0]) + priors[2,0]
@@ -10029,7 +10024,7 @@ def envelope_3d(mnlabel='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',min_
     py.ylim([1e3,1e7])
     py.xlabel('r (pc)')
     py.ylabel(r'Density (solar mass/pc$^3$)')
-    py.savefig(plotRoot+'density_3d_cusp.png')
+    py.savefig(homeRoot+'plots/density_3d_cusp.png')
     py.clf()
     py.close('all')
 
@@ -10038,12 +10033,12 @@ def envelope_3d(mnlabel='data_mthread_FINAL_free_maser_cuts_5.0_15.0arcsec',min_
 
 def realCompareMock(real='_mthread_FINAL',mock='tmp0.5_2.5_3_0.5_C0.3_MT',label='',binNum=40):
 
-    realGC = np.loadtxt(cRoot+'stars_mn'+real+'.dat')
-    realSC = np.loadtxt(cRoot+'maser_mn'+real+'.dat')
+    realGC = np.loadtxt(homeRoot+'code/c/stars_mn'+real+'.dat')
+    realSC = np.loadtxt(homeRoot+'code/c/maser_mn'+real+'.dat')
 
-    mockGC = np.loadtxt(cRoot+'stars_mn'+mock+'.dat')
-    mockSC = np.loadtxt(cRoot+'maser_mn'+mock+'.dat')
-    mockr = np.loadtxt(cRoot+'maser_mn'+mock+'.dat') / cm_in_pc
+    mockGC = np.loadtxt(homeRoot+'code/c/stars_mn'+mock+'.dat')
+    mockSC = np.loadtxt(homeRoot+'code/c/maser_mn'+mock+'.dat')
+    mockr = np.loadtxt(homeRoot+'code/c/maser_mn'+mock+'.dat') / cm_in_pc
 
     real_R2d = np.append(realGC[:,0],realSC[:,0]) / (cm_in_au * dist)
     real_pOld = np.append(realGC[:,3],realSC[:,1])
@@ -10059,7 +10054,7 @@ def realCompareMock(real='_mthread_FINAL',mock='tmp0.5_2.5_3_0.5_C0.3_MT',label=
     py.hist(mockr,bins=100,color='g',normed=1)
     py.xlabel('3D r (pc)')
     py.ylabel('Normalied Histogram')
-    py.savefig(plotRoot+'mock_r_hist_'+label+'.png')
+    py.savefig(homeRoot+'plots/mock_r_hist_'+label+'.png')
 
     py.clf()
     histm,bins,junk=py.hist(mock_R2d*mock_pOld,bins=binNum,histtype='step',label='Mock Data',color='g',normed=1)
@@ -10067,7 +10062,7 @@ def realCompareMock(real='_mthread_FINAL',mock='tmp0.5_2.5_3_0.5_C0.3_MT',label=
     py.legend(loc=2)
     py.xlabel('Projected R (arcsec)')
     py.ylabel('Normalized Histogram')
-    py.savefig(plotRoot+'compareR2d_'+label+'.png')
+    py.savefig(homeRoot+'plots/compareR2d_'+label+'.png')
 
     py.clf()
     histm,bins,junk=py.hist(mock_ar,bins=binNum,histtype='step',label='Mock Data',color='g',normed=1)
@@ -10075,7 +10070,7 @@ def realCompareMock(real='_mthread_FINAL',mock='tmp0.5_2.5_3_0.5_C0.3_MT',label=
     py.legend(loc=2)
     py.xlabel(r'$a_R$ (cm/s$^2$)')
     py.ylabel('Normalized Histogram')
-    py.savefig(plotRoot+'compare_aR_'+label+'.png')
+    py.savefig(homeRoot+'plots/compare_aR_'+label+'.png')
 
     py.clf()
     histm,bins,junk=py.hist(mock_ar/mock_are,bins=binNum,histtype='step',label='Mock Data',color='g',normed=1)
@@ -10083,7 +10078,7 @@ def realCompareMock(real='_mthread_FINAL',mock='tmp0.5_2.5_3_0.5_C0.3_MT',label=
     py.legend(loc=2)
     py.xlabel(r'$a_R$ (sigma)')
     py.ylabel('Normalized Histogram')
-    py.savefig(plotRoot+'compare_aR_sigma_'+label+'.png')
+    py.savefig(homeRoot+'plots/compare_aR_sigma_'+label+'.png')
     py.clf()
     py.close('all')
 
@@ -10097,8 +10092,8 @@ def plotsPaper2017(post=['data_mthread_NOACCEL_free_maser_cuts_5.0_15.0arcsec','
     py.clf()
     fig=py.figure(figsize=(20,10))
     for i in range(len(post)):
-        priors = np.loadtxt(mnoutRoot+''+post[i]+'_priors.txt')
-        posterior = np.loadtxt(mnoutRoot+''+post[i]+'_.txt')
+        priors = np.loadtxt(homeRoot+'pmnOld/'+post[i]+'_priors.txt')
+        posterior = np.loadtxt(homeRoot+'pmnOld/'+post[i]+'_.txt')
         gamma = posterior[:,2]*(priors[0,1] - priors[0,0]) + priors[0,0]
         rbreak = posterior[:,5]*(priors[3,1] - priors[3,0]) + priors[3,0]
         cfact = posterior[:,6]
@@ -10147,7 +10142,7 @@ def plotsPaper2017(post=['data_mthread_NOACCEL_free_maser_cuts_5.0_15.0arcsec','
                 #else:
 #ax.axes.yaxis.set_ticklabels([])
 
-    py.savefig(plotRoot+'oneD_gamma_rbreak_cfact.png')
+    py.savefig(homeRoot+'plots/oneD_gamma_rbreak_cfact.png')
     py.clf()
     py.close('all')
 
@@ -10155,8 +10150,8 @@ def plotsPaper2017(post=['data_mthread_NOACCEL_free_maser_cuts_5.0_15.0arcsec','
 
 
 def plotModelParam(flag='for_posterNOW',numbins=25,Cplot=True):
-    posterior = np.loadtxt(mnoutRoot+''+flag+'_.txt')
-    priors = np.loadtxt(mnoutRoot+''+flag+'_priors.txt')
+    posterior = np.loadtxt(homeRoot+'pmnOld/'+flag+'_.txt')
+    priors = np.loadtxt(homeRoot+'pmnOld/'+flag+'_priors.txt')
     #gamma = posterior[:,2]*(priors[0,1] - priors[0,0]) + priors[0,0]
     #alpha = posterior[:,3]*(priors[1,1] - priors[1,0]) + priors[1,0]
     #delta = posterior[:,4]*(priors[2,1] - priors[2,0]) + priors[2,0]
@@ -10206,7 +10201,7 @@ def plotModelParam(flag='for_posterNOW',numbins=25,Cplot=True):
         print ' '
         ax.set_ylim(ylim)
         py.xlabel(axis_label[i])
-        fig.savefig(plotRoot+''+flag+'_'+p_label[i]+'_post.png')
+        fig.savefig(homeRoot+'plots/'+flag+'_'+p_label[i]+'_post.png')
         fig.clf()
 
     if (Cplot==True):
@@ -10237,7 +10232,7 @@ def plotModelParam(flag='for_posterNOW',numbins=25,Cplot=True):
 
         print ' '
         ax.set_ylim(ylim)
-        fig.savefig(plotRoot+''+flag+'_cfactor_post.png')
+        fig.savefig(homeRoot+'plots/'+flag+'_cfactor_post.png')
         fig.clf()
 
 
@@ -10258,7 +10253,7 @@ def plotModelParam(flag='for_posterNOW',numbins=25,Cplot=True):
             py.contour(X,Y,hist,levels=levels, colors=('gray','k','limegreen'),linestyles=('dotted','dashed','solid',))
             py.xlabel(axis_label[i])
             py.ylabel(axis_label[j])
-            py.savefig(plotRoot+''+flag+'_'+p_label[i]+'_'+p_label[j]+'.png')
+            py.savefig(homeRoot+'plots/'+flag+'_'+p_label[i]+'_'+p_label[j]+'.png')
             print p_label[i]+' AND '+p_label[j]+' --------------------------'
             tmpdex = unravel_index(hist.argmax(),hist.shape)
             print p_label[i]
@@ -10295,7 +10290,7 @@ def plotModelParam(flag='for_posterNOW',numbins=25,Cplot=True):
             py.contour(X,Y,hist,levels=levels, colors=('gray','k','limegreen'),linestyles=('dotted','dashed','solid',))
             py.xlabel('C Factor')
             py.ylabel(axis_label[i])
-            py.savefig(plotRoot+''+flag+'_'+p_label[i]+'_cfactor.png')
+            py.savefig(homeRoot+'plots/'+flag+'_'+p_label[i]+'_cfactor.png')
             print p_label[i]+' AND C FACTOR --------------------------'
             tmpdex = unravel_index(hist.argmax(),hist.shape)
             print p_label[i]
@@ -10547,7 +10542,7 @@ def plotModelParam(flag='for_posterNOW',numbins=25,Cplot=True):
                         ytmp[0].label1.set_visible(False)
                         xtmp = ax.yaxis.get_major_ticks()
                         xtmp[0].label1.set_visible(False)
-    py.savefig(plotRoot+''+flag+'_pyramid.eps',format='eps',dpi=1000)
+    py.savefig(homeRoot+'plots/'+flag+'_pyramid.eps',format='eps',dpi=1000)
     py.clf()
     py.close('all')
 
@@ -10610,8 +10605,8 @@ def post_gamma_rbreak(files=['data_fixed_amod_noVelAcc','data_newCode_noAcc'],y_
     
     for i in range(2):
     
-        priors = np.loadtxt(mnoutRoot+''+files[i]+'_priors.txt')
-        posterior = np.loadtxt(mnoutRoot+''+files[i]+'_.txt')
+        priors = np.loadtxt(homeRoot+'pmnOld/'+files[i]+'_priors.txt')
+        posterior = np.loadtxt(homeRoot+'pmnOld/'+files[i]+'_.txt')
     
         gamma = posterior[:,2]*(priors[0,1] - priors[0,0]) + priors[0,0]
         rbreak = posterior[:,5]*(priors[3,1] - priors[3,0]) + priors[3,0]
@@ -10645,7 +10640,7 @@ def post_gamma_rbreak(files=['data_fixed_amod_noVelAcc','data_newCode_noAcc'],y_
             else:
                 ax.axes.yaxis.set_ticklabels([])
 
-    fig.savefig(plotRoot+'oneD_maxBin_gamma_rbreak.png')
+    fig.savefig(homeRoot+'plots/oneD_maxBin_gamma_rbreak.png')
     fig.clf()
 
 
@@ -10683,7 +10678,7 @@ def projectRhoEnvelope(numBins=70,nonRadial=1,numR=50,maxZ=1.0,gcowsNum=8,datLab
     gcowsHist, gcows_bins = np.histogram(gcows_stars[:,0]/cm_in_au/dist,bins=gcows_bins,weights=gcows_stars[:,3])
 
     if (nonRadial>0):
-        gcows = np.loadtxt(cRoot+'gcows_field.dat')
+        gcows = np.loadtxt(homeRoot+'code/c/gcows_field.dat')
         gcows_rows = gcows[:,1]
         gcows_cols = gcows[:,0]
         plate_scale = 0.00995
@@ -10730,7 +10725,7 @@ def projectRhoEnvelope(numBins=70,nonRadial=1,numR=50,maxZ=1.0,gcowsNum=8,datLab
     py.ylim([0.5,20])
     py.xlabel('Radius (arcsec)')
     py.ylabel("Surface Density K' > 15.5 mag (arcsec$^{-2}$)")
-    py.savefig(plotRoot+'surfaceDensity_oneSigma.png')
+    py.savefig(homeRoot+'plots/surfaceDensity_oneSigma.png')
     py.clf()
     py.close('all')
 
@@ -10739,7 +10734,7 @@ def projectRhoEnvelope(numBins=70,nonRadial=1,numR=50,maxZ=1.0,gcowsNum=8,datLab
 
 def plotRatioOY_fromFit(gamma=-0.013,alpha=1.15,delta=5.44,r_break=10.0,a_norm=3.27,b_norm=3.0,B_gamma=0.93,samp_label='37eCut'):
     
-    starfile = np.loadtxt(cRoot+'stars_mn_'+samp_label+'.dat')
+    starfile = np.loadtxt(homeRoot+'code/c/stars_mn_'+samp_label+'.dat')
     
     x = np.linspace(0.3,15.0)
     oldStars = a_norm * (x / r_break)**(-gamma) * (1.0 + (x / r_break)**delta)**((gamma - alpha)/delta)
@@ -10755,7 +10750,7 @@ def plotRatioOY_fromFit(gamma=-0.013,alpha=1.15,delta=5.44,r_break=10.0,a_norm=3
     py.xscale('log')
     py.xlabel('R (arcsec)')
     py.ylabel('Late-Type Population / Total Stellar Population')
-    py.savefig(plotRoot+'old_total_ratio_R2d.png')
+    py.savefig(homeRoot+'plots/old_total_ratio_R2d.png')
     py.clf()
     py.close('all')
 

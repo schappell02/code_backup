@@ -16,9 +16,9 @@
 //#include "gsl/gsl/gsl_integration.h"
 #include <iostream>
 #include <iomanip>
-#include <boost/config/user.hpp>
-#include <boost/math/special_functions/erf.hpp>
-#include <boost/numeric/quadrature/adaptive.hpp>
+//#include <boost/config/user.hpp>
+//#include <boost/math/special_functions/erf.hpp>
+//#include <boost/numeric/quadrature/adaptive.hpp>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -33,11 +33,11 @@ using std::ios;
 using std::string;
 using std::stoi;
 using std::endl;
-using namespace boost::numeric;
+//using namespace boost::numeric;
 
 const double PI = 3.14159265358979;
-const double mass = 3.958e6; //Ghez 2008
-const double dist = 7787.0; //Ghez 2008
+const double mass = 3.960e6; //Ghez 2008
+const double dist = 7828.0; //Ghez 2008
 const double G = 6.6726e-8;
 const double msun = 1.99e33;
 const double sec_in_yr = 3.1557e7;
@@ -333,30 +333,30 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 
 
 
-void dumper(int &nSamples, int &nlive, int &nPar, double **physLive, double **posterior, double **paramConstr, double &maxLogLike, double &logZ, double &logZerr, void *context)
+void dumper(int &nSamples, int &nlive, int &nPar, double **physLive, double **posterior, double **paramConstr, double &maxLogLike, double &logZ, double &INSlogZ, double &logZerr, void *context)
 {
-	// convert the 2D Fortran arrays to C++ arrays
-	
-	
-	// the posterior distribution
-	// postdist will have nPar parameters in the first nPar columns & loglike value & the posterior probability in the last two columns
-	
-	int i, j;
-	
-	double postdist[nSamples][nPar + 2];
-	for( i = 0; i < nPar + 2; i++ )
-		for( j = 0; j < nSamples; j++ )
-			postdist[j][i] = posterior[0][i * nSamples + j];
-	
-	
-	
-	// last set of live points
-	// pLivePts will have nPar parameters in the first nPar columns & loglike value in the last column
-	
-	double pLivePts[nlive][nPar + 1];
-	for( i = 0; i < nPar + 1; i++ )
-		for( j = 0; j < nlive; j++ )
-			pLivePts[j][i] = physLive[0][i * nlive + j];
+    // convert the 2D Fortran arrays to C++ arrays
+    
+    
+    // the posterior distribution
+    // postdist will have nPar parameters in the first nPar columns & loglike value & the posterior probability in the last two columns
+    
+    int i, j;
+    
+    double postdist[nSamples][nPar + 2];
+    for( i = 0; i < nPar + 2; i++ )
+    for( j = 0; j < nSamples; j++ )
+    postdist[j][i] = posterior[0][i * nSamples + j];
+    
+    
+    
+    // last set of live points
+    // pLivePts will have nPar parameters in the first nPar columns & loglike value in the last column
+    
+    double pLivePts[nlive][nPar + 1];
+    for( i = 0; i < nPar + 1; i++ )
+    for( j = 0; j < nlive; j++ )
+    pLivePts[j][i] = physLive[0][i * nlive + j];
 }
 
 
@@ -565,9 +565,12 @@ int main(int argc, char *argv[])
   int maxiter = 0;// max no. of iterations, a non-positive value means infinity. MultiNest will terminate if either it 
 		  // has done max no. of iterations or convergence criterion (defined through tol) has been satisfied
 	
-  void *context = 0;// not required by MultiNest, any additional information user wants to pass	
+  void *context = 0;// not required by MultiNest, any additional information user wants to pass
+    
+    int IS = 1;
+    
 	
   // calling MultiNest
 	
-  nested::run(mmodal, ceff, nlive, tol, efr, ndims, nPar, nClsPar, maxModes, updInt, Ztol, root, seed, pWrap, fb, resume, outfile, initMPI,logZero, maxiter, LogLike, dumper, context);
+  nested::run(IS, mmodal, ceff, nlive, tol, efr, ndims, nPar, nClsPar, maxModes, updInt, Ztol, root, seed, pWrap, fb, resume, outfile, initMPI,logZero, maxiter, LogLike, dumper, context);
 }

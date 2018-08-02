@@ -36,8 +36,8 @@ using std::endl;
 using namespace boost::numeric;
 
 const double PI = 3.14159265358979;
-const double mass = 3.958e6; //Ghez 2008
-const double dist = 7787.0; //Ghez 2008
+const double mass = 4.07e6; //Ghez 2008
+const double dist = 7960.0; //Ghez 2008
 const double G = 6.6726e-8;
 const double msun = 1.99e33;
 const double sec_in_yr = 3.1557e7;

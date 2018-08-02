@@ -844,8 +844,8 @@ def histAccel(alnDir='11_10_26/',align='align/align_d_rms_1000_abs_t',
 
 
         
-def plotStar(starName,alnDir='schappell_14_06_18/',align='align/align_d_rms_1000_abs_t',
-             poly='polyfit_nz/fit', points='points_nz/', radial=False, accel_fit=False):
+def plotStar(starName,alnDir='13_08_21/',align='align/align_d_rms_1000_abs_t',
+             poly='polyfit_c/fit', points='points_c/', radial=False, accel_fit=True):
 
 #accel_fit = True the resulting plots of X and Y vs t and Y vs X show accel fit, if false show velocity fit
 #either way outputs another figure showing residuals in X and Y from both fits
@@ -1103,57 +1103,6 @@ def plotStar(starName,alnDir='schappell_14_06_18/',align='align/align_d_rms_1000
     savefig(outdir+'plot_Residuals_'+starName+'.png')
     py.close(3)
 
-
-    figure(13)
-    clf()
-    subplots_adjust(hspace=0.25,left=0.1, right=0.95,top=0.9, bottom=0.1, wspace=0.25)
-    paxes=subplot(2,2,1)
-    errorbar(time,diffXv/xerr,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('X Residuals ($\sigma$)')
-    title('Velocity Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    #    paxes.yaxis.set_major_formatter(fmtY)
-    
-    paxes=subplot(2,2,2)
-    errorbar(time,diffXa/xerr,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('X Residuals ($\sigma$)')
-    title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    #    paxes.yaxis.set_major_formatter(fmtY)
-    
-    paxes=subplot(2,2,3)
-    errorbar(time,diffYv/yerr,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('Y Residuals ($\sigma$)')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    #    paxes.yaxis.set_major_formatter(fmtY)
-    
-    paxes=subplot(2,2,4)
-    errorbar(time,diffYa/yerr,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('Y Residuals ($\sigma$)')
-    #    title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    #    paxes.yaxis.set_major_formatter(fmtY)
-    
-    savefig(outdir+'plot_Residuals_sigma_'+starName+'.png')
-    py.close(13)
-
-
     py.figure(4)
     py.clf()
     plot(fitLineX[idtmp], fitLineY[idtmp], 'b-')
@@ -1209,51 +1158,6 @@ def plotStar(starName,alnDir='schappell_14_06_18/',align='align/align_d_rms_1000
 #    subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
     savefig(outdir+'plotY_X_' + starName + '.png')
     py.close(4)
-
-    py.figure(5)
-    subplots_adjust(hspace=0.25,left=0.08, right=0.95,top=0.9, bottom=0.1, wspace=0.25)
-    paxes = subplot(1,3,1)
-    plot(fitLineX[idtmp], fitLineY[idtmp], 'b-')
-    errorbar(x[idtmp], y[idtmp],xerr=xerr[idtmp], yerr=yerr[idtmp], fmt='k.')
-    xlabel('X (arcsec)')
-    ylabel('Y (arcsec)')
-
-    paxes = subplot(1,3,2)
-    plot(time, fitLineX, 'b-')
-    plot(time, fitLineX + fitSigX, 'b--')
-    plot(time, fitLineX - fitSigX, 'b--')
-    errorbar(time, x, yerr=xerr, fmt='k.')
-    rng = axis()
-    axis(dateTicRng + [rng[2], rng[3]])
-    xlabel('Date (yrs)')
-    ylabel('X (arcsec)')
-    title(starName+' '+fit_tag)
-    #    title('X chi2_red = %4.2f' % fitx.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.yaxis.set_major_formatter(fmtY)
-    
-    #    paxes = subplot(3, 2, 2)
-    paxes = subplot(1,3,3)
-    plot(time, fitLineY, 'b-')
-    plot(time, fitLineY + fitSigY, 'b--')
-    plot(time, fitLineY - fitSigY, 'b--')
-    errorbar(time, y, yerr=yerr, fmt='k.')
-    rng = axis()
-    axis(dateTicRng + [rng[2], rng[3]])
-    xlabel('Date (yrs)')
-    ylabel('Y (arcsec)')
-    #    title('Y chi2_red = %4.2f' % fity.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-    paxes.yaxis.set_major_formatter(fmtY)
-    
-    savefig(outdir+'plotXY_AND_t_' + starName + '.png')
-    py.close(5)
-
-
 #    print outdir + 'plotStar_' + starName + '.png'
     #show()
 

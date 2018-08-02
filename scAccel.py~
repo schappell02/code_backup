@@ -2112,25 +2112,22 @@ def velVsAcc():
 
 
 
-def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
-             poly='polyfit_nz/fit', points='points_nz/', radial=False, accel_fit=True):
-
-#accel_fit = True the resulting plots of X and Y vs t and Y vs X show accel fit, if false show velocity fit
-#either way outputs another figure showing residuals in X and Y from both fits
+def plotStar(starName, alnDir='13_08_21/',
+             align='align/align_d_rms_1000_abs_t',
+             poly='polyfit_c/fit', points='points_c/', suffix='', radial=False):
 
     outdir = home + 'plots/'
 
-    s = starset.StarSet(rootDir + alnDir + align)
-    
-    s.loadPolyfit(rootDir + alnDir + poly, accel=0, arcsec=0)
-    s.loadPolyfit(rootDir + alnDir + poly, accel=1, arcsec=0)
+    s = starset.StarSet(root + alnDir + align)
+    s.loadPolyfit(root + alnDir + poly, accel=0, arcsec=0)
+    s.loadPolyfit(root + alnDir + poly, accel=1, arcsec=0)
 
     names = s.getArray('name')
     
     ii = names.index(starName)
     star = s.stars[ii]
 
-    pointsTab = asciidata.open(rootDir + alnDir + points + starName + '.points')
+    pointsTab = asciidata.open(root + alnDir + points + starName + '.points')
 
     time = pointsTab[0].tonumpy()
     x = pointsTab[1].tonumpy()
@@ -2138,14 +2135,14 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     xerr = pointsTab[3].tonumpy()
     yerr = pointsTab[4].tonumpy()
 
-    fitxv = star.fitXv
-    fityv = star.fitYv
-    dtv = time - fitxv.t0
-    fitLineXv = fitxv.p + (fitxv.v * dtv)
-    fitSigXv = np.sqrt( fitxv.perr**2 + (dtv * fitxv.verr)**2 )
+    fitx = star.fitXv
+    fity = star.fitYv
+    dt = time - fitx.t0
+    fitLineX = fitx.p + (fitx.v * dt)
+    fitSigX = np.sqrt( fitx.perr**2 + (dt * fitx.verr)**2 )
 
-    fitLineYv = fityv.p + (fityv.v * dtv)
-    fitSigYv = np.sqrt( fityv.perr**2 + (dtv * fityv.verr)**2 )
+    fitLineY = fity.p + (fity.v * dt)
+    fitSigY = np.sqrt( fity.perr**2 + (dt * fity.verr)**2 )
 
     if (radial == True):
         # Lets also do radial/tangential
@@ -2192,69 +2189,20 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         idxT = np.where(abs(sigT) > 4)
         
 
-    diffXv = x - fitLineXv
-    diffYv = y - fitLineYv
+    diffX = x - fitLineX
+    diffY = y - fitLineY
     #diff = np.hypot(diffX, diffY)
-    diffv = (diffXv + diffYv) / 2.0
-    rerrv = np.sqrt((diffXv*xerr)**2 + (diffYv*yerr)**2) / diffv
-    sigXv = diffXv / xerr
-    sigYv = diffYv / yerr
-    sigv = diffv / rerrv
+    diff = (diffX + diffY) / 2.0
+    rerr = np.sqrt((diffX*xerr)**2 + (diffY*yerr)**2) / diff
+    sigX = diffX / xerr
+    sigY = diffY / yerr
+    sig = diff / rerr
 
-    #SC added, find accel fit and accel residuals
-    fitxa = star.fitXa
-    fitya = star.fitYa
-    dta = time - fitxa.t0
-    fitLineXa = fitxa.p + (fitxa.v * dta) + (fitxa.a * dta * dta / 2.0)
-    print fitxa.t0
-    print fitxa.p
-    print fitxa.v
-    print fitxa.a
-    fitSigXa = np.sqrt(fitxa.perr**2 + (dta * fitxa.verr)**2 + (dta * dta * fitxa.aerr / 2.0)**2)
-    fitLineYa = fitya.p + (fitya.v * dta) + (fitya.a * dta * dta / 2.0)
-    print fitya.t0
-    print fitya.p
-    print fitya.v
-    print fitya.a
-    fitSigYa = np.sqrt(fitya.perr**2 + (dta * fitya.verr)**2 + (dta * dta * fitya.aerr / 2.0)**2)
-
-    diffXa = x - fitLineXa
-    diffYa = y - fitLineYa
-    #diff = np.hypot(diffX, diffY)
-    diffa = (diffXa + diffYa) / 2.0
-    rerra = np.sqrt((diffXa*xerr)**2 + (diffYa*yerr)**2) / diffa
-    sigXa = diffXa / xerr
-    sigYa = diffYa / yerr
-    siga = diffa / rerra
-
-#    if (accel_fit == False):
-    sigX=sigXv
-    sigY=sigYv
-    sig=sigv
-    fitx=fitxv
-    fity=fityv
-    fitLineX=fitLineXv
-    fitLineY=fitLineYv
-    fitSigX=fitSigXv
-    fitSigY=fitSigYv
-    fit_tag='Vel Fit'
-
-    if (accel_fit == True):
-        sigX=sigXa
-        sigY=sigYa
-        sig=siga
-        fitx=fitxa
-        fity=fitya
-        fitLineX=fitLineXa
-        fitLineY=fitLineYa
-        fitSigX=fitSigXa
-        fitSigY=fitSigYa
-        fit_tag='Accel Fit'
-
+    
     # Determine if there are points that are more than 5 sigma off
-    idxX = np.where(abs(sigX) > 5)
-    idxY = np.where(abs(sigY) > 5)
-    idx = np.where(abs(sig) > 5)
+    idxX = np.where(abs(sigX) > 4)
+    idxY = np.where(abs(sigY) > 4)
+    idx = np.where(abs(sig) > 4)
 
     print 'Star:        ', starName
     print '\tX Chi^2 = %5.2f (%6.2f for %2d dof)' % \
@@ -2270,11 +2218,14 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     print '*****************'
     print
 
+
+    close(2)
     figure(2, figsize=(7, 8))
     clf()
 
     dateTicLoc = MultipleLocator(3)
-    dateTicRng = [1995, 2015]
+    #dateTicRng = [2006, 2010]
+    dateTicRng = [1995, 2010]
 
     maxErr = np.array([xerr, yerr]).max()
     resTicRng = [-3*maxErr, 3*maxErr]
@@ -2283,11 +2234,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     fmtX = FormatStrFormatter('%5i')
     fmtY = FormatStrFormatter('%6.2f')
 
-#    idtmp=np.where((time > 2006) & (abs(sigY) < 5))
-    idtmp=np.where(time > 1990)
-#    xyplim=[min(x[idtmp])-.002,max(x[idtmp])+.002,min(y[idtmp])-.002,max(y[idtmp])+.002]
-
-    paxes = subplot(2,1,1)
+    paxes = subplot(3, 2, 1)
     plot(time, fitLineX, 'b-')
     plot(time, fitLineX + fitSigX, 'b--')
     plot(time, fitLineX - fitSigX, 'b--')
@@ -2295,16 +2242,13 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     rng = axis()
     axis(dateTicRng + [rng[2], rng[3]])
     xlabel('Date (yrs)')
-    ylabel('X (arcsec)')
-    title(starName+' '+fit_tag)
-#    title('X chi2_red = %4.2f' % fitx.chi2red)
+    ylabel('X (pix)')
     #paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.xaxis.set_major_formatter(fmtX)
     paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.yaxis.set_major_formatter(fmtY)
     
-#    paxes = subplot(3, 2, 2)
-    paxes = subplot(2,1,2)
+    paxes = subplot(3, 2, 2)
     plot(time, fitLineY, 'b-')
     plot(time, fitLineY + fitSigY, 'b--')
     plot(time, fitLineY - fitSigY, 'b--')
@@ -2312,121 +2256,50 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
     rng = axis()
     axis(dateTicRng + [rng[2], rng[3]])
     xlabel('Date (yrs)')
-    ylabel('Y (arcsec)')
-#    title('Y chi2_red = %4.2f' % fity.chi2red)
+    ylabel('Y (pix)')
     #paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.xaxis.set_major_formatter(fmtX)
     paxes.get_xaxis().set_major_locator(dateTicLoc)
     paxes.yaxis.set_major_formatter(fmtY)
-
-    savefig(outdir+'plotXY_t_' + starName + '.png')
-    py.close(2)
-
-    figure(3)
-    clf()
-    subplots_adjust(hspace=0.25,left=0.1, right=0.95,top=0.9, bottom=0.1, wspace=0.25)
-    paxes=subplot(2,2,1)
-    errorbar(time,diffXv*1e3,yerr=xerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('X Residuals (mas)')
-    title('Velocity Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(2,2,2)
-    errorbar(time,diffXa*1e3,yerr=xerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('X Residuals (mas)')
-    title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(2,2,3)
-    errorbar(time,diffYv*1e3,yerr=yerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('Y Residuals (mas)')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    paxes=subplot(2,2,4)
-    errorbar(time,diffYa*1e3,yerr=yerr*1e3,fmt='b.')
-    plot([0,3000],[0,0],'k')
-    axis(dateTicRng+[-10,10])
-    xlabel('Date (yrs)')
-    ylabel('Y Residuals (mas)')
-#    title('Acceleration Fit')
-    paxes.xaxis.set_major_formatter(fmtX)
-    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
-
-    savefig(outdir+'plot_Residuals_'+starName+'.png')
-    py.close(3)
-
-    py.figure(4)
-    py.clf()
-    plot(fitLineX[idtmp], fitLineY[idtmp], 'b-')
-    errorbar(x[idtmp], y[idtmp],xerr=xerr[idtmp], yerr=yerr[idtmp], fmt='k.')
-    title(starName+' '+fit_tag)
-#    rng = axis()
-#    axis(xyplim)
-    xlabel('X (arcsec)')
-    ylabel('Y (arcsec)')
-#    title('Y chi2_red = %4.2f' % fity.chi2red)
-    #paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.xaxis.set_major_formatter(fmtX)
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
-#    paxes.yaxis.set_major_formatter(fmtY)
     
-#    paxes = subplot(3, 2, 3)
-#    plot(time, np.zeros(len(time)), 'b-')
-#    plot(time, fitSigX, 'b--')
-#    plot(time, -fitSigX, 'b--')
-#    errorbar(time, x - fitLineX, yerr=xerr, fmt='k.')
-    #axis(dateTicRng + resTicRng)
-#    axis([2005,2011,-0.001,0.001])
-#    xlabel('Date (yrs)')
-#    ylabel('X Residuals (arcsec)')
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
+    paxes = subplot(3, 2, 3)
+    plot(time, np.zeros(len(time)), 'b-')
+    plot(time, fitSigX, 'b--')
+    plot(time, -fitSigX, 'b--')
+    errorbar(time, x - fitLineX, yerr=xerr, fmt='k.')
+    axis(dateTicRng + resTicRng)
+    xlabel('Date (yrs)')
+    ylabel('X Residuals (pix)')
+    paxes.get_xaxis().set_major_locator(dateTicLoc)
 
-#    paxes = subplot(3, 2, 4)
-#    plot(time, np.zeros(len(time)), 'b-')
-#    plot(time, fitSigY, 'b--')
-#    plot(time, -fitSigY, 'b--')
-#    errorbar(time, y - fitLineY, yerr=yerr, fmt='k.')
-    #axis(dateTicRng + resTicRng)
-#    axis([2005,2011,-0.001,0.001])
-#    xlabel('Date (yrs)')
-#    ylabel('Y Residuals (arcsec)')
-#    paxes.get_xaxis().set_major_locator(dateTicLoc)
+    paxes = subplot(3, 2, 4)
+    plot(time, np.zeros(len(time)), 'b-')
+    plot(time, fitSigY, 'b--')
+    plot(time, -fitSigY, 'b--')
+    errorbar(time, y - fitLineY, yerr=yerr, fmt='k.')
+    axis(dateTicRng + resTicRng)
+    xlabel('Date (yrs)')
+    ylabel('Y Residuals (pix)')
+    paxes.get_xaxis().set_major_locator(dateTicLoc)
 
-#    bins = np.arange(-7, 7, 1)
-#    subplot(3, 2, 5)
-#    (n, b, p) = hist(sigX, bins)
-#    setp(p, 'facecolor', 'k')
-#    axis([-5, 5, 0, 20])
-#    xlabel('X Residuals (sigma)')
-#    ylabel('Number of Epochs')
+    bins = np.arange(-7, 7, 1)
+    subplot(3, 2, 5)
+    (n, b, p) = hist(sigX, bins)
+    setp(p, 'facecolor', 'k')
+    axis([-5, 5, 0, 20])
+    xlabel('X Residuals (sigma)')
+    ylabel('Number of Epochs')
 
-#    subplot(3, 2, 6)
-#    (n, b, p) = hist(sigY, bins)
-#    axis([-5, 5, 0, 20])
-#    setp(p, 'facecolor', 'k')
-#    xlabel('Y Residuals (sigma)')
-#    ylabel('Number of Epochs')
+    subplot(3, 2, 6)
+    (n, b, p) = hist(sigY, bins)
+    axis([-5, 5, 0, 20])
+    setp(p, 'facecolor', 'k')
+    xlabel('Y Residuals (sigma)')
+    ylabel('Number of Epochs')
 
-#    subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
-    savefig(outdir+'plotY_X_' + starName + '.png')
-    py.close(4)
-#    print outdir + 'plotStar_' + starName + '.png'
+    subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
+    #savefig(outdir+'plotStar_' + starName + '.eps')
+    savefig(outdir+'plotStar_' + starName + suffix + '.png')
     #show()
 
     ##########
@@ -2438,8 +2311,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         clf()
 
         dateTicLoc = MultipleLocator(3)
-        #dateTicRng = [1995, 2011]
-        dateTicRng = [2006, 2011]
+        dateTicRng = [1995, 2008]
         
         maxErr = np.array([rerr, terr]).max()
         resTicRng = [-3*maxErr, 3*maxErr]
@@ -2456,7 +2328,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         rng = axis()
         axis(dateTicRng + [rng[2], rng[3]])
         xlabel('Date (yrs)')
-        ylabel('R (arcsec)')
+        ylabel('R (pix)')
         paxes.xaxis.set_major_formatter(fmtX)
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         paxes.yaxis.set_major_formatter(fmtY)
@@ -2469,7 +2341,7 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         rng = axis()
         axis(dateTicRng + [rng[2], rng[3]])
         xlabel('Date (yrs)')
-        ylabel('T (arcsec)')
+        ylabel('T (pix)')
         paxes.xaxis.set_major_formatter(fmtX)
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         paxes.yaxis.set_major_formatter(fmtY)
@@ -2479,10 +2351,9 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         plot(time, fitSigR, 'b--')
         plot(time, -fitSigR, 'b--')
         errorbar(time, r - fitLineR, yerr=rerr, fmt='k.')
-        #axis(dateTicRng + resTicRng)
-        axis([2005,2011,-0.001,0.001])
+        axis(dateTicRng + resTicRng)
         xlabel('Date (yrs)')
-        ylabel('R Residuals (arcsec)')
+        ylabel('R Residuals (pix)')
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         
         paxes = subplot(3, 2, 4)
@@ -2490,10 +2361,9 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         plot(time, fitSigT, 'b--')
         plot(time, -fitSigT, 'b--')
         errorbar(time, t - fitLineT, yerr=terr, fmt='k.')
-        #axis(dateTicRng + resTicRng)
-        axis([2005,2011,-0.001,0.001])
+        axis(dateTicRng + resTicRng)
         xlabel('Date (yrs)')
-        ylabel('T Residuals (arcsec)')
+        ylabel('T Residuals (pix)')
         paxes.get_xaxis().set_major_locator(dateTicLoc)
         
         bins = np.arange(-7, 7, 1)
@@ -2501,20 +2371,19 @@ def plotStar(starName,alnDir='14_06_18/',align='align/align_d_rms_1000_abs_t',
         (n, b, p) = hist(sigR, bins)
         setp(p, 'facecolor', 'k')
         axis([-5, 5, 0, 20])
-        xlabel('R Residuals (sigma)')
+        xlabel('T Residuals (sigma)')
         ylabel('Number of Epochs')
         
         subplot(3, 2, 6)
         (n, b, p) = hist(sigT, bins)
         axis([-5, 5, 0, 20])
         setp(p, 'facecolor', 'k')
-        xlabel('T Residuals (sigma)')
+        xlabel('Y Residuals (sigma)')
         ylabel('Number of Epochs')
         
         subplots_adjust(wspace=0.4, hspace=0.4, right=0.95, top=0.95)
-        savefig(outdir+'plotStarRadial_' + starName + '.png')
-
-    return fitLineXv,fitLineXa
+        #savefig(outdir+'plotStarRadial_' + starName + '.eps')
+        savefig(outdir+'plotStarRadial_' + starName + suffix + '.png')
 
 
 def getResiduals(alnDir='13_08_21/',
@@ -4193,9 +4062,6 @@ def getSigmas(alnDir='14_06_18/', align = 'align/align_d_rms_1000_abs_t',
 
     return ar, are, at, ate, mag, r, pass_f, pass_fj, projV
 #    return x0, x0e, y0, y0e, ax, axe, ay, aye, mag, r, pass_f, pass_fj
-
-
-
 
 def quick_delta(accel, accel_err, guess):
     for ess in guess:

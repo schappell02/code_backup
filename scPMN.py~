@@ -45,14 +45,14 @@ pi = math.pi
 
 # Mass and Ro from S0-2 - Ghez et al. 2008, Anna Boehle up to 2013
 mass = 3.960e6 #3.93e6
-#masse = 0.6e6 #0.19e6
+masse = 0.6e6 #0.19e6
 dist = 7828.0 #7.84e3
 #diste = 0.14e3
 G = 6.6726e-8
 msun = 1.99e33
 GM = G * mass * msun
 mass_g = mass * msun
-#masse_g = masse * msun
+masse_g = masse * msun
 sec_in_yr = 3.1557e7
 cm_in_au = 1.496e13
 cm_in_pc = 3.086e18
@@ -91,7 +91,6 @@ def loadPop(alnDir='13_08_21/',
     s.loadPolyfit(root_tmp + alnDir + poly, accel=1, arcsec=1)
     s.loadPoints(root_tmp + alnDir + points)
 
-
     # Get the most up-to-date young stars from Tuan's sql data base.
     yng = young.youngStarNames()
 
@@ -99,7 +98,6 @@ def loadPop(alnDir='13_08_21/',
     yngstars = []
     names = [star.name for star in s.stars]
 
-    pdb.set_trace()
 
 #    print 'All the stars'
 #    print names
@@ -184,10 +182,10 @@ def loadPop(alnDir='13_08_21/',
             star.axe = star.fitXa.aerr
             star.aye = star.fitYa.aerr
             star.cnt = star.velCnt
-            star.xchi2 = star.fitXa.chi2
-            star.ychi2 = star.fitYa.chi2
-            star.xchi2r = star.fitXa.chi2red
-            star.ychi2r = star.fitYa.chi2red
+	    star.xchi2 = star.fitXa.chi2
+	    star.ychi2 = star.fitYa.chi2
+	    star.xchi2r = star.fitXa.chi2red
+	    star.ychi2r = star.fitYa.chi2red
             star.t0x = star.fitXa.t0
             star.t0y = star.fitYa.t0
         except AttributeError, e:
@@ -228,10 +226,10 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, alnDir = '13_08_21/', c
 
     #Read in values for error in position and velocity of sgr*
     origin_val = asciidata.open('/g/ghez/align/' + alnDir + chainsDir + 'efit_summary.txt')
-    ori_x0e = origin_val[25][0]
-    ori_y0e = origin_val[26][0]
-    ori_vxe = origin_val[27][0]
-    ori_vye = origin_val[28][0]
+    ori_x0e = origin_val[18][0]
+    ori_y0e = origin_val[19][0]
+    ori_vxe = origin_val[20][0]
+    ori_vye = origin_val[21][0]
     t_0 = 2000.0 #hard coded t_0 of sgr*
 
  #   magBins=np.array([9,11,12,13,14,15,16,17,18,19,20,21])
@@ -242,8 +240,6 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, alnDir = '13_08_21/', c
 #        for j in range(len(deltaArr)):
 #            if ((mag[i] > magBins[j]) & (mag[i] <= magBins[j+1])):
 #                delta[i]=deltaArr[j]
-
-#pdb.set_trace()
 
     #Update errors
     xerr = np.sqrt(xerr**2 + ori_x0e**2 + ((year_x - t_0)*ori_vxe)**2)
@@ -323,29 +319,29 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     jx0 = _fit[1].tonumpy()
     jvx = _fit[2].tonumpy()
     jax = _fit[3].tonumpy()
-    jjx = _fit[4].tonumpy()
+    jx = _fit[4].tonumpy()
     jx0e = _fit[5].tonumpy()
     jvxe = _fit[6].tonumpy()
     jaxe = _fit[7].tonumpy()
-    jjxe = _fit[8].tonumpy()
+    jxe = _fit[8].tonumpy()
     chi2xj = _fit[9].tonumpy()
 #    jxq = _fit[10].tonumpy()
 
     jy0 = _fit[11].tonumpy()
     jvy = _fit[12].tonumpy()
     jay = _fit[13].tonumpy()
-    jjy = _fit[14].tonumpy()
+    jy = _fit[14].tonumpy()
     jy0e = _fit[15].tonumpy()
     jvye = _fit[16].tonumpy()
     jaye = _fit[17].tonumpy()
-    jjye = _fit[18].tonumpy()
+    jye = _fit[18].tonumpy()
     chi2yj = _fit[19].tonumpy()
 #    jyq = _fit[20].tonumpy()
 
     
     r = np.sqrt(x0**2 + y0**2)
     if (nonRadial==0):
-        idx = np.where((cnt > nEpochs) & (r < Rcut))[0]
+        idx = np.where((cnt > nEpochs) & (mag < magCut) & (r < Rcut))[0]
     else:
         in_gcows = np.zeros(len(mag))
         plate_scale = 0.00995
@@ -364,11 +360,9 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                 continue
             if ((x_pixels < 0.0) | (y_pixels < 0.0)):
                 in_gcows[ii] = 0
-        idx = np.where((cnt > nEpochs) & (r < Rcut) & (in_gcows > 0))[0]
-
+        idx = np.where((cnt > nEpochs) & (mag < magCut) & (r < Rcut) & (in_gcows==1.0))[0]
 #in_gcows = in_gcows[idx]
-#pdb.set_trace()
-
+        #pdb.set_trace()
 
     r = np.hypot(x0, y0)
     ar = ((ax*x0) + (ay*y0)) / r
@@ -404,11 +398,9 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     chi2yv = chi2yv[idx]
     chi2xa = chi2xa[idx]
     chi2ya = chi2ya[idx]
-    chi2xjr = np.zeros(len(idx))
-    chi2yjr = np.zeros(len(idx))
+    #chi2xj = chi2xj[idx]
+    #chi2yj = chi2yj[idx]
     names = [names[nn] for nn in idx]
-
-#pdb.set_trace()
 
     chi2xj_tmp = np.array([])
     chi2yj_tmp = np.array([])
@@ -496,37 +488,22 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 
     idex = np.where((pass_fj ==1) & (pass_f == 1))[0]
 
-
-    jx = np.zeros(len(x0))
-    jy = np.zeros(len(x0))
-    jxe = np.zeros(len(x0))
-    jye = np.zeros(len(x0))
     for i in idex:
-        try:
-            jdex = np.where(jnames == names[i])
-            #x0[i] = jx0[jdex]
-            #y0[i] = jy0[jdex]
-            x0e[i] = jx0e[jdex]
-            y0e[i] = jy0e[jdex]
-            vx[i] = jvx[jdex]
-            vy[i] = jvy[jdex]
-            vxe[i] = jvxe[jdex]
-            vye[i] = jvye[jdex]
-            ax[i] = jax[jdex]
-            ay[i] = jay[jdex]
-            axe[i] = jaxe[jdex]
-            aye[i] = jaye[jdex]
-            t0x[i] = jt0x[jdex]
-            t0y[i] = jt0y[jdex]
-
-            jx[i] = jjx[jdex]
-            jy[i] = jjy[jdex]
-            jxe[i] = jjxe[jdex]
-            jye[i] = jjye[jdex]
-            chi2xjr[i] = chi2xj[jdex] / (cnt[i] - 4.0)
-            chi2yjr[i] = chi2yj[jdex] / (cnt[i] - 4.0)
-        except:
-            continue
+        jdex = np.where(jnames == names[i])
+        x0[i] = jx0[jdex]
+        y0[i] = jy0[jdex]
+        x0e[i] = jx0e[jdex]
+        y0e[i] = jy0e[jdex]
+        vx[i] = jvx[jdex]
+        vy[i] = jvy[jdex]
+        vxe[i] = jvxe[jdex]
+        vye[i] = jvye[jdex]
+        ax[i] = jax[jdex]
+        ay[i] = jay[jdex]
+        axe[i] = jaxe[jdex]
+        aye[i] = jaye[jdex]
+        t0x[i] = jt0x[jdex]
+        t0y[i] = jt0y[jdex]
 
     r = np.hypot(x0, y0)
     ar = ((ax*x0) + (ay*y0)) / r
@@ -537,8 +514,6 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     ate =  (axe*y0/r)**2 + (aye*x0/r)**2
     ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
     ate =  np.sqrt(ate)
-
-#pdb.set_trace()
 
     if updateErr:
         x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, alnDir=alnDir, chainsDir = chainsDir)
@@ -562,11 +537,9 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
             if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
                 delta_add[i] = deltaArr[j]
 
-
-
     py.clf()
     mid_point = np.array([(atBins[ii]+atBins[ii+1])/2.0 for ii in range(len(deltaArr))])
-    py.plot(mid_point,deltaArr*1e6,'o')
+    py.plot(mid_point,deltaArr*1e6)
     py.xlabel("Magnitude (K')")
     py.ylabel('Additive Error ($\mu$as/yr$^2$)')
     py.savefig('/u/schappell/plots/additive_error_magnitude.png')
@@ -575,7 +548,7 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     py.axes([0.08,0.1,0.38,0.82])
     py.hist(at/ate,bins=200)
     py.xlim([-15,15])
-#py.ylim([0,85])
+    py.ylim([0,85])
     py.xlabel('$\sigma_T$')
     py.title('Before')
 
@@ -585,7 +558,7 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     py.axes([0.56,0.1,0.38,0.82])
     py.hist(at/ate,bins=200)
     py.xlim([-15,15])
-#py.ylim([0,85])
+    py.ylim([0,85])
     py.xlabel('$\sigma_T$')
     py.title('After')
     py.savefig('/u/schappell/plots/before_after_error_at.png')
@@ -611,6 +584,10 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
                 oldProb[i] = float(row[1])
         except:
             continue
+        if ((tmpName == 'S0-38') | (tmpName == 'S0-49') | (tmpName == 'S0-35') | (tmpName == 'S1-32')):
+            oldProb[i] = 1.0
+        if (tmpName == 'S0-61'):
+                oldProb[i] = 0.0
     
     for i in range(len(names)):
         tmpName = str(names[i])
@@ -624,273 +601,143 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
         except:
             continue
 
-        if ((tmpName == 'S0-38') | (tmpName == 'S0-49') | (tmpName == 'S0-35') | (tmpName == 'S1-32')):
-            oldProb[i] = 1.0
-        if (tmpName == 'S0-61'):
-            oldProb[i] = 0.0
-
 #make significant accel, 3 sigma upper limits, and rest selection
     sortdex = np.argsort(r)
     sigdex = np.array([])
     updex = np.array([])
     restdex = np.array([])
 
-#pdb.set_trace()
-
-
-    if (nonRadial>0):
-        py.clf()
-        py.plot((gcows_dex[1]-1500.0)*plate_scale,(gcows_dex[0]-1500.0)*plate_scale,'.',color='k',label='GCOWS footprint')
-        py.plot(-1.0*x0,y0,'.',color='b',label=r'p$_{Old} = 0$')
-        oldDex = np.where(oldProb > 0.0)[0]
-        py.plot(-1.0*x0[oldDex],y0[oldDex],'.',color='r',label=r'p$_{Old} > 0$')
-        py.legend()
-        py.xlabel('RA (arcsec)')
-        py.ylabel('Dec (arcsec)')
-        py.savefig('/u/schappell/plots/xy_gcows_pold_footprint.png')
-
-
-    agdex = np.where((r > 1.0) & (oldProb > 0.0))[0]
-    py.clf()
-    for aj in agdex:
-        if (chi2yjr[aj] == 0.0):
-            tmp_chir = abs(chi2xa[aj] + chi2ya[aj])/(2.0*(cnt[aj] - 3.0))
-            accel_plot=py.errorbar(tmp_chir, ar[aj]*1e3,yerr=are[aj]*1e3,fmt='.',color='b')
-    for aj in agdex:
-        if (chi2yjr[aj] != 0.0):
-            jerk_plot=py.errorbar(abs(chi2yjr[aj]+chi2xjr[aj])/2.0,ar[aj]*1e3,yerr=are[aj]*1e3,fmt='.',color='r')
-    py.xscale('log')
-#py.yscale('log')
-    py.legend([jerk_plot,accel_plot],['Jerk Fit','Accel Fit'])
-    py.ylabel(r'a$_r$ (mas/yr$^2$)')
-    py.xlabel(r'X$^2_{red}$')
-    py.savefig('/u/schappell/plots/ar_chi2red.png')
-    py.clf()
-    for aj in agdex:
-        if (chi2yjr[aj] == 0.0):
-            tmp_chir = abs(chi2xa[aj] + chi2ya[aj])/(2.0*(cnt[aj] - 3.0))
-            accel_plot=py.errorbar(tmp_chir, at[aj]*1e3,yerr=ate[aj]*1e3,fmt='.',color='b')
-    for aj in agdex:
-        if (chi2yjr[aj] != 0.0):
-            jerk_plot=py.errorbar(abs(chi2yjr[aj]+chi2xjr[aj])/2.0,at[aj]*1e3,yerr=ate[aj]*1e3,fmt='.',color='r')
-    py.xscale('log')
-#   py.yscale('log')
-    py.legend([jerk_plot,accel_plot],['Jerk Fit','Accel Fit'])
-    py.ylabel(r'a$_t$ (mas/yr$^2$)')
-    py.xlabel(r'X$^2_{red}$')
-    py.savefig('/u/schappell/plots/at_chi2red.png')
-    py.clf()
-    py.plot(ar[agdex]/are[agdex],at[agdex]/ate[agdex],'.')
-    py.xlabel(r'a$_r$/$\sigma_{a,r}$')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.savefig('/u/schappell/plots/sig_ar_at_all.png')
-    py.clf()
-    py.plot(ar[agdex]/are[agdex],at[agdex]/ate[agdex],'.')
-    py.xlabel(r'a$_r$/$\sigma_{a,r}$')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlim([-20,20])
-    py.ylim([-20,20])
-    py.savefig('/u/schappell/plots/sig_ar_at_all_ZOOM.png')
-    py.clf()
-    py.plot(r[agdex],ar[agdex]/are[agdex],'.',label='Radial')
-    py.ylabel(r'a$_r$/$\sigma_{a,r}$')
-    py.xlabel(r'R$_{2D}$ (arcsec)')
-    py.savefig('/u/schappell/plots/sig_ar_R2d.png')
-    py.clf()
-    py.plot(cnt[agdex],ar[agdex]/are[agdex],'.',label='Radial')
-    py.ylabel(r'a$_r$/$\sigma_{a,r}$')
-    py.xlabel(r'Number Epochs')
-    py.savefig('/u/schappell/plots/sig_ar_epochs.png')
-    py.clf()
-    py.plot(mag[agdex],ar[agdex]/are[agdex],'.',label='Radial')
-    py.ylabel(r'a$_r$/$\sigma_{a,r}$')
-    py.xlabel("K' (mag)")
-    py.savefig('/u/schappell/plots/sig_ar_mag.png')
-    py.clf()
-    py.plot(r[agdex],at[agdex]/ate[agdex],'.',label='Radial')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlabel(r'R$_{2D}$ (arcsec)')
-    py.savefig('/u/schappell/plots/sig_at_R2d.png')
-    py.clf()
-    py.plot(cnt[agdex],at[agdex]/ate[agdex],'.',label='Radial')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlabel(r'Number Epochs')
-    py.savefig('/u/schappell/plots/sig_at_epochs.png')
-    py.clf()
-    py.plot(mag[agdex],at[agdex]/ate[agdex],'.',label='Radial')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlabel("K' (mag)")
-    py.savefig('/u/schappell/plots/sig_at_mag.png')
-    py.clf()
-    py.plot(cnt[agdex],mag[agdex],'.')
-    py.ylabel("K' (mag)")
-    py.xlabel('Number Epochs')
-    py.savefig('/u/schappell/plots/mag_epocs.png')
-    py.clf()
-    py.plot(r[agdex],cnt[agdex],'.',label="K' < 15.5")
-    tmpdex = np.where(mag[agdex] > 15.5)[0]
-    py.plot(r[agdex[tmpdex]],cnt[agdex[tmpdex]],'.',color='r',label="K' > 15.5")
-    py.xlabel(r'R$_{2D}$ (arcsec)')
-    py.ylabel('Number Epochs')
-    py.savefig('/u/schappell/plots/epocs_R2d_showMag.png')
-    py.clf()
-    sort_epochs = np.sort(cnt[agdex])
-    sum_epochs = np.cumsum((sort_epochs*0.0+1.0))/float(len(sort_epochs))
-    py.plot(sort_epochs,sum_epochs)
-    py.xlabel('Number Epochs')
-    py.ylabel('CDF')
-    py.savefig('/u/schappell/plots/CDF_epochs.png')
-    py.clf()
-
-
-#plR = np.arange(0.0,5.01,0.01)
-#plA = (GM/plR**2)*sec_in_yr**2*1e-15*1e3/as_to_km**3
-#py.plot(plR,plA,'r')
     for ss in sortdex:
         if (((ar[ss]/are[ss]) <= -3.0) & (np.abs(at[ss]/ate[ss]) <= 3.0)):
             sigdex = np.append(sigdex,ss)
-            py.errorbar(r[ss],ar[ss]*1e3,yerr=are[ss]*1e3,fmt='b.')
         elif ((ar[ss]+3.0*are[ss]) < 0.0):
-            #pdb.set_trace()
-            updex = np.append(updex,int(ss))
-            py.plot(r[ss],(ar[ss]-3.0*are[ss])*1e3,'k_')
-            py.arrow(r[ss],(ar[ss]-3.0*are[ss])*1e3,0,5,head_width=0.15,head_length=1,fc='k',ec='k',linewidth=0.8)
-
-    py.xlabel('R (arcsec)')
-    py.ylabel(r'a$_r$ (mas/yr$^2$)')
-#py.ylim([-10,100])
-    py.savefig('/u/schappell/plots/sig_upperLim_accel_sample.png')
-
-#pdb.set_trace()
+            updex = np.append(updex,ss)
+        else:
+            restdex = np.append(restdex,ss)
 
 
     out = open('/u/schappell/tables/sigstars_table.tex','w')
 #out.write('\\documentclass{aastex} \n')
 # out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lcccccccccccccc} \n')
+    out.write('\\begin{deluxetable}{lcccccccccccc} \n')
 #   out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\setlength{\\tabcolsep}{0.8mm} \n')
+    out.write('\\tabletypesize{\\tiny} \n')
+    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
     out.write('\\tablewidth{0pt} \n')
 #   out.write('\\begin{document} \n')
 #out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec, p$_{old}$ > 0, and K' < 15.5 mag}\n")
-    out.write("\\tablecaption{Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)}\n")
+    out.write("\\tablecaption{Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)")
     out.write('\\tablehead{ \n')
     out.write('  \\colhead{Star} & \n')
     out.write("  \\colhead{K'} & \n")
     out.write('  \\colhead{X} & \n')
     out.write('  \\colhead{Y} & \n')
     out.write('  \\colhead{R$_{2D}$} & \n')
-    out.write('  \\colhead{n}\\tablenotemark{a} & \n')
+    out.write('  \\colhead{Epochs} & \n')
     out.write('  \\colhead{$v_x$} & \n')
     out.write('  \\colhead{$v_y$} & \n')
     out.write('  \\colhead{$a_r$} & \n')
     out.write('  \\colhead{$a_t$} & \n')
-    out.write('  \\colhead{$a_r / \sigma_r$} & \n')
-    out.write('  \\colhead{$a_t / \sigma_t$} & \n')
-    out.write('  \\colhead{$j_x$} & \n')
-    out.write('  \\colhead{$j_y$} & \n')
-    out.write('  \\colhead{$p_{old}$}\\tablenotemark{b} & \\\\\n')
+    out.write('  \\colhead{$\sigma_r$} & \n')
+    out.write('  \\colhead{$\sigma_t$} & \n')
+    out.write('  \\colhead{$p_{old}$}\\tablenotemark{a} & \\\\\n')
     out.write('%\n')
     out.write('  \\colhead{} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{3}{c}{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr)} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr$^2$)} & \n')
+    out.write('  \\colhead{(mas/yr)} & \n')
+    out.write('  \\colhead{(mas/yr)} & \n')
+    out.write('  \\colhead{(mas/yr$^2$)} & \n')
+    out.write('  \\colhead{(mas/yr$^2$)} & \n')
     out.write('  \\colhead{} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{($\mu$as/yr$^3$)} & \n')
     out.write('  \\colhead{} & \n')
     out.write('} \n')
     out.write('\\startdata \n')
 #out.write('\\multicolumn{13}{}{} & Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)')
+    out.write('\\\\')
+    out.write('\\hline')
     for ii in sigdex:
-        ii = int(ii)
-        fmt = '%15s  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.1f  %1s  %6.1f  %1s  '
-        if (jx[ii] != 0):
-            fmt += '%6.1f  %5s  %6.1f  %1s  %6.1f  %5s  %6.1f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', jx[ii]*1e6, '$\pm$', jxe[ii]*1e6, '&', jy[ii]*1e6, '$\pm$', jye[ii]*1e6, '&', oldProb[ii], '\\\\'))
-        else:
-            fmt += '%5s  %1s  %5s  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' - ', '&', ' - ', '&', oldProb[ii], '\\\\'))
+        fmt = '%15s  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %1s  '
+            #if (oldProb[ii] > 0.0):
+        fmt += '%6.2f  %4s\n'
+        out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', oldProb[ii], '\\\\'))
+            #else:
+            #fmt += '%2s  %4s\n'
+#out.write(fmt % (names[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e6, '$\pm$', are[ii]*1e6, '&', at[ii]*1e6, '$\pm$', ate[ii]*1e6, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' ', '\\\\'))
     out.write('\\\\\n')
     out.write('\\enddata \n')
-    out.write('\label{tab:sig_data} \n')
-    out.write('\\tablenotetext{a}{Number of epochs.} \n')
-    out.write('\\tablenotetext{b}{Probability of being late-type, reported in \citet{do13l}.} \n')
+    out.write('\label{tab:all_data} \n')
+    out.write('\\tablenotetext{a}{Probability of being late-type, reported in \citet{do13l}.} \n')
     out.write('\\end{deluxetable} \n')
 #out.write('\\end{singlespace} \n')
 # out.write('\\end{document} \n')
-    out.write('\n')
-    out.write('\n')
-    out.write('\n')
-    out.write('\n')
+    out.close()
 
 
-#out = open('/u/schappell/tables/limitstars_table.tex','w')
+
+out = open('/u/schappell/tables/limitstars_table.tex','w')
     #out.write('\\documentclass{aastex} \n')
     # out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lcccccccccccc} \n')
+    out.write('\\begin{deluxetable}{lcccccccccc} \n')
     #   out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\setlength{\\tabcolsep}{0.8mm} \n')
+    out.write('\\tabletypesize{\\tiny} \n')
+    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
     out.write('\\tablewidth{0pt} \n')
     #   out.write('\\begin{document} \n')
     #out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec, p$_{old}$ > 0, and K' < 15.5 mag}\n")
-    out.write("\\tablecaption{Stars with radial acceleration upper limits}\n")
+    out.write("\\tablecaption{Stars with radial acceleration upper limits")
     out.write('\\tablehead{ \n')
     out.write('  \\colhead{Star} & \n')
     out.write("  \\colhead{K'} & \n")
     out.write('  \\colhead{X} & \n')
     out.write('  \\colhead{Y} & \n')
     out.write('  \\colhead{R$_{2D}$} & \n')
-    out.write('  \\colhead{n}\\tablenotemark{a} & \n')
+    out.write('  \\colhead{Epochs} & \n')
     out.write('  \\colhead{$v_x$} & \n')
     out.write('  \\colhead{$v_y$} & \n')
     #out.write('  \\colhead{$a_r$} & \n')
     out.write('  \\colhead{$a_t$} & \n')
     #out.write('  \\colhead{$\sigma_r$} & \n')
     #out.write('  \\colhead{$\sigma_t$} & \n')
-    out.write('  \\colhead{$a_{r,lim}$\\tablenotemark{b}} & \n')
-    out.write('  \\colhead{$j_x$} & \n')
-    out.write('  \\colhead{$j_y$} & \n')
+    out.write('  \\colhead{$a_{r,lim}$\\tablenotemark{a}} & \n')
     #out.write('  \\colhead{$z_{lim}$\\tablenotemark{a}} & \n')
-    out.write('  \\colhead{$p_{old}$\\tablenotemark{c}} & \\\\\n')
+    out.write('  \\colhead{$p_{old}$\\tablenotemark{b}} & \\\\\n')
     out.write('%\n')
     out.write('  \\colhead{} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{3}{c}{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr)} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr$^2$)} & \n')
-    out.write('  \\multicolumn{2}{c}{($\mu$as/yr$^3$)} & \n')
+    out.write('  \\colhead{(mas/yr)} & \n')
+    out.write('  \\colhead{(mas/yr)} & \n')
+    out.write('  \\colhead{(mas/yr$^2$)} & \n')
+    out.write('  \\colhead{(mas/yr$^2$)} & \n')
     #out.write('  \\colhead{(pc)} & \n')
     out.write('  \\colhead{} & \n')
     #out.write('  \\colhead{} & \n')
     out.write('} \n')
     out.write('\\startdata \n')
     #out.write('\\multicolumn{13}{}{} & Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)')
-    out.write('\\\\\n')
-    out.write('\\hline \n')
+    out.write('\\\\')
+    out.write('\\hline')
     for ii in updex:
-        ii = int(ii)
-        fmt = '%15s  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  '
-        if (jx[ii] != 0):
-            fmt += '%6.1f  %5s  %6.1f  %1s  %6.1f  %5s  %6.1f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', (ar[ii]-3.0*are[ii])*1e3, '&', jx[ii]*1e6, '$\pm$', jxe[ii]*1e6, '&', jy[ii]*1e6, '$\pm$', jye[ii]*1e6, '&', oldProb[ii], '\\\\'))
-        else:
-            fmt += '%5s  %1s  %5s  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', (ar[ii]-3.0*are[ii])*1e3, '&', ' - ', '&', ' - ', '&', oldProb[ii], '\\\\'))
+        fmt = '%15s  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  '
+        #if (oldProb[ii] > 0.0):
+        fmt += '%6.2f  %4s\n'
+        out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]+3.0*are[ii], '&', oldProb[ii], '\\\\'))
     #else:
     #fmt += '%2s  %4s\n'
     #out.write(fmt % (names[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e6, '$\pm$', are[ii]*1e6, '&', at[ii]*1e6, '$\pm$', ate[ii]*1e6, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' ', '\\\\'))
     out.write('\\\\\n')
     out.write('\\enddata \n')
-    out.write('\label{tab:lim_data} \n')
-    out.write('\\tablenotetext{a}{Number of epochs.} \n')
-    out.write('\\tablenotetext{b}{Three $\sigma$ lower limit.} \n')
-    out.write('\\tablenotetext{c}{Probability of being late-type, reported in \citet{do13l}.} \n')
+    out.write('\label{tab:all_data} \n')
+    out.write('\\tablenotetext{a}{Three $\sigma$ upper limit.} \n')
+    out.write('\\tablenotetext{b}{Probability of being late-type, reported in \citet{do13l}.} \n')
     out.write('\\end{deluxetable} \n')
     #out.write('\\end{singlespace} \n')
 # out.write('\\end{document} \n')
@@ -904,11 +751,11 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 # out.write('\\begin{singlespace} \n')
     out.write('\\begin{deluxetable}{lcccccccccccc} \n')
 #   out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\setlength{\\tabcolsep}{0.8mm} \n')
+    out.write('\\tabletypesize{\\tiny} \n')
+    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
     out.write('\\tablewidth{0pt} \n')
 #   out.write('\\begin{document} \n')
-    out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec}\n")
+    out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec, p$_{old}$ > 0, and K' < 15.5 mag}\n")
 #out.write("\\tablecaption{Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)")
     out.write('\\tablehead{ \n')
     out.write('  \\colhead{Star} & \n')
@@ -916,46 +763,45 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     out.write('  \\colhead{X} & \n')
     out.write('  \\colhead{Y} & \n')
     out.write('  \\colhead{R$_{2D}$} & \n')
-    out.write('  \\colhead{n}\\tablenotemark{a} & \n')
+    out.write('  \\colhead{Epochs} & \n')
     out.write('  \\colhead{$v_x$} & \n')
     out.write('  \\colhead{$v_y$} & \n')
     out.write('  \\colhead{$a_r$} & \n')
     out.write('  \\colhead{$a_t$} & \n')
-    out.write('  \\colhead{$a_r / \sigma_r$} & \n')
-    out.write('  \\colhead{$a_t / \sigma_t$} & \n')
-    out.write('  \\colhead{$j_x$} & \n')
-    out.write('  \\colhead{$j_y$} & \n')
-    out.write('  \\colhead{$p_{old}$}\\tablenotemark{b} & \\\\\n')
+    out.write('  \\colhead{$\sigma_r$} & \n')
+    out.write('  \\colhead{$\sigma_t$} & \n')
+    out.write('  \\colhead{$p_{old}$}\\tablenotemark{a} & \\\\\n')
     out.write('%\n')
     out.write('  \\colhead{} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{3}{c}{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr)} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr$^2$)} & \n')
+    out.write('  \\colhead{(mas/yr)} & \n')
+    out.write('  \\colhead{(mas/yr)} & \n')
+    out.write('  \\colhead{(mas/yr$^2$)} & \n')
+    out.write('  \\colhead{(mas/yr$^2$)} & \n')
     out.write('  \\colhead{} & \n')
     out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{($\mu$as/yr$^3$)} & \n')
     out.write('  \\colhead{} & \n')
     out.write('} \n')
     out.write('\\startdata \n')
 #out.write('\\multicolumn{13}{}{} & Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)')
-    out.write('\\\\\n')
-    out.write('\\hline \n')
+    out.write('\\\\')
+    out.write('\\hline')
     for ii in sortdex:
-        ii = int(ii)
-        fmt = '%15s  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.1f  %1s  %6.1f  %1s  '
-        if (jx[ii] != 0):
-            fmt += '%6.1f  %5s  %6.1f  %1s  %6.1f  %5s  %6.1f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', jx[ii]*1e6, '$\pm$', jxe[ii]*1e6, '&', jy[ii]*1e6, '$\pm$', jye[ii]*1e6, '&', oldProb[ii], '\\\\'))
-        else:
-            fmt += '%5s  %1s  %5s  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' - ', '&', ' - ', '&', oldProb[ii], '\\\\'))
+        fmt = '%15s  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  %6.2f  %1s  '
+        if (oldProb[ii] > 0.0):
+            fmt += '%6.2f  %4s\n'
+            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', oldProb[ii], '\\\\'))
+            #else:
+            #fmt += '%2s  %4s\n'
+#out.write(fmt % (names[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e6, '$\pm$', are[ii]*1e6, '&', at[ii]*1e6, '$\pm$', ate[ii]*1e6, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' ', '\\\\'))
     out.write('\\\\\n')
     out.write('\\enddata \n')
     out.write('\label{tab:all_data} \n')
-    out.write('\\tablenotetext{a}{Number of epochs.} \n')
-    out.write('\\tablenotetext{b}{Probability of being late-type, reported in \citet{do13l}.} \n')
+    out.write('\\tablenotetext{a}{Probability of being late-type, reported in \citet{do13l}.} \n')
     out.write('\\end{deluxetable} \n')
 #out.write('\\end{singlespace} \n')
 # out.write('\\end{document} \n')
@@ -965,7 +811,7 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 
 
 #pdb.set_trace()
-    idx = np.where((oldProb > 0.0) & (mag < magCut))[0]
+    idx = np.where(oldProb > 0.0)[0]
     names = [names[nn] for nn in idx]
 
     #Calculating z0 aand a_z and their errors
@@ -981,7 +827,7 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
 #    r3d_cm = np.sqrt(x0_cm**2 + y0_cm**2 + z0_cm**2)
 #    r3de_cm = np.sqrt(((x0_cm*x0e_cm)**2 + (y0_cm*y0e_cm)**2 + (z0_cm*z0e_cm)**2)/r3d_cm**2)
 
-#pdb.set_trace()
+#    pdb.set_trace()
 
     py.clf()
     bins = np.arange(10.0,16.0,step=0.25)
@@ -3976,13 +3822,13 @@ def gamma_C_accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,al
                     #           except:
                     #continue
 
-# if (updateErr == True):
-#           origin_val = asciidata.open('/g/ghez/align/' + alnDir + chainsDir + 'efit_summary.txt')
-#           ori_x0e = origin_val[18][0]
-#           ori_y0e = origin_val[19][0]
-#           ori_vxe = origin_val[20][0]
-#           ori_vye = origin_val[21][0]
-#           t_0 = 2000.0 #hard coded t_0 of sgr*
+        if (updateErr == True):
+            origin_val = asciidata.open('/g/ghez/align/' + alnDir + chainsDir + 'efit_summary.txt')
+            ori_x0e = origin_val[18][0]
+            ori_y0e = origin_val[19][0]
+            ori_vxe = origin_val[20][0]
+            ori_vye = origin_val[21][0]
+            t_0 = 2000.0 #hard coded t_0 of sgr*
 
     #Index of stars used for multinest
         pdex = np.where(oldProb > 0.0)[0]
@@ -4035,14 +3881,6 @@ def gamma_C_accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,al
         py.ylabel('Number of Stars')
         py.yscale('log')
         py.savefig('/u/schappell/plots/KLF_TOTAL_sample.png')
-
-
-        py.clf()
-        py.hist(mag_sch,bins=bins,histtype='step')
-        py.xlabel("K' mag")
-        py.ylabel('Number of Stars')
-        py.yscale('log')
-        py.savefig('/u/schappell/plots/KLF_schodel_sample.png')
 
 
     if (single==False):
@@ -4863,7 +4701,7 @@ def maserStars(maserDate='13jullgs1',innerCut=5.0,outerCut=15.0,magCut=15.5,scho
         os.system(outCommand)
 
 
-    return mag[mdex]
+    return mag[idx]
 
 
 

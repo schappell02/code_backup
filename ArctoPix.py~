@@ -1,0 +1,29 @@
+import numpy as np
+
+
+def skyToRefPix(align='test_schoedel/14_01_15/',points='efit/S0-38_97may_AOadderr1.7_constholoerr7.orig.points'):
+
+    pointsTab=np.loadtxt('/g/ghez/align/'+align+points)
+
+    years = pointsTab[:,0]
+    x = pointsTab[:,1]
+    y = pointsTab[:,2]
+    xerr = pointsTab[:,3]
+    yerr = pointsTab[:,4]
+
+    trans_date = np.loadtxt('/g/ghez/align/'+align+'align/align_d_rms_1000_abs_t.date')
+    trans = np.loadtxt('/g/ghez/align/'+align+'align/align_d_rms_1000_abs_t.trans')
+
+    for i in range(len(years)):
+        j = np.where(years[i] == trans_date)[0]
+
+        const_array = np.array([[trans[j,5],trans[j,7]],[trans[j,13],trans[j,11]]])
+        zero_array = np.array([trans[j,3],trans[j,9]])
+
+        solu = np.linalg.solve(const_array,zero_array)
+
+        print years[i]
+        print solu
+        print ''
+
+        

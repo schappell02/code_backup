@@ -16,8 +16,8 @@
 //#include "gsl/gsl/gsl_integration.h"
 #include <iostream>
 #include <iomanip>
-#include <boost/config/user.hpp>
-#include <boost/math/special_functions/erf.hpp>
+//#include <boost/config/user.hpp>
+//#include <boost/math/special_functions/erf.hpp>
 //#include <boost/numeric/quadrature/adaptive.hpp>
 #include <fstream>
 #include <string>
@@ -130,15 +130,15 @@ double pos_int(double ax, void* data)
 double star_likeZ(double z0modv, void* data)
 {
   int iii = *(int *)data;
-  //if (arv[iii] < 0.0)
-  //{
-  //  amodv[iii] = -1.0*GM*r2dv[iii] / pow((sqrt(r2dv[iii]*r2dv[iii] + z0modv*z0modv)),3.0);
-  //  like_returnv[iii] = exp(-1.0*(arv[iii]-amodv[iii])*(arv[iii]-amodv[iii])/(2.0*arve[iii]*arve[iii]));
-  //}
-  //else 
-  //{
-  like_returnv[iii] = 1.0;
-  //    }
+  if (arv[iii] < 0.0)
+  {
+    amodv[iii] = -1.0*GM*r2dv[iii] / pow((sqrt(r2dv[iii]*r2dv[iii] + z0modv*z0modv)),3.0);
+    like_returnv[iii] = exp(-1.0*(arv[iii]-amodv[iii])*(arv[iii]-amodv[iii])/(2.0*arve[iii]*arve[iii]));
+  }
+  else
+  {
+      like_returnv[iii] = 1.0;
+    }
 
   like_returnv[iii] *= pow((1.0+pow((sqrt(r2dv[iii]*r2dv[iii]+z0modv*z0modv)/brmodv),demodv)),((gmodv-almodv)/demodv));
   like_returnv[iii] *= pow((r2dv[iii]*r2dv[iii]+z0modv*z0modv)/(brmodv*brmodv),(gmodv/-2.0));
@@ -220,7 +220,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 		//blahDex += 1.0;
 		//density_gcowsv += rho_gcows[iii];
 		//mutex2.unlock();
-	      }
+          }
 	  }
       };
       for (auto &&elem : rho_gcows)
@@ -258,7 +258,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 	  //cout << "norm pos " << norm_posv[iii] << endl;
 	  //cout << "Density norm" << density_normv << endl;
 	  //cout << "prob old " << pOldv[iii] << endl;
-	  starlikev[iii] *= cmodv / (density_normv);
+	  starlikev[iii] *= cmodv / (density_normv * norm_posv[iii]);
 	  //mutex.lock();
 	  //double tmpvalue = pOldv[iii] * log(starlikev[iii]);
 	  //if(tmpvalue < -1e20){tmpvalue=0.0;}
@@ -333,7 +333,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 
 
 
-void dumper(int &nSamples, int &nlive, int &nPar, double **physLive, double **posterior, double **paramConstr, double &maxLogLike, double &logZ, double &INSlogZ, double &logZerr, void *context)
+void dumper(int &nSamples, int &nlive, int &nPar, double **physLive, double **posterior, double **paramConstr, double &maxLogLike, double &logZ, double &logZerr, void *context)
 {
 	// convert the 2D Fortran arrays to C++ arrays
 	
@@ -487,29 +487,26 @@ int main(int argc, char *argv[])
       in.close();
       num_gcows = gcows_vrows.size();
     }
-
-  cout << "Finished GCOWS field intake" << endl;
-  //std::string pfile;
-  //pfile.append(root);
-  //pfile.append("priors.txt");
+  
+  std::string pfile;
+  pfile.append(root);
+  pfile.append("priors.txt");
 
   //Writing priors to file
-  //ofstream priors;
-  //priors.open(pfile);
-  //priors << "#Gamma priors:\n" << min_g << " " << max_g << "\n";
-  //if (fabs(remainder(situation,2)) > 0.0)
-  // {
-  //   priors << "#Alpha priors:\n" << min_a << " " << max_a << "\n";
-  //    priors << "#Delta priors:\n" << min_d << " " << max_d << "\n";
-  //   priors << "#Break r priors (pc):\n" << min_b/cm_in_pc << " " << max_b/cm_in_pc << "\n";
-  //   priors << "#Break r meu and sigma (pc):\n" << meu_b/cm_in_pc << " " << sigma_b/cm_in_pc << "\n";
-  //}
-  //priors.close();
+  ofstream priors;
+  priors.open(pfile);
+  priors << "#Gamma priors:\n" << min_g << " " << max_g << "\n";
+  if (fabs(remainder(situation,2)) > 0.0)
+    {
+      priors << "#Alpha priors:\n" << min_a << " " << max_a << "\n";
+      priors << "#Delta priors:\n" << min_d << " " << max_d << "\n";
+      priors << "#Break r priors (pc):\n" << min_b/cm_in_pc << " " << max_b/cm_in_pc << "\n";
+      priors << "#Break r meu and sigma (pc):\n" << meu_b/cm_in_pc << " " << sigma_b/cm_in_pc << "\n";
+    }
+  priors.close();
 
 	
   // set the MultiNest sampling parameters
-
-  int IS = 1; //do Nested Importance Sampling?
 	
   int mmodal = 0;// do mode separation?
 	
@@ -556,14 +553,14 @@ int main(int argc, char *argv[])
 	
   int fb = 1;// need feedback on standard output?
 	
-  int resume = 1;// resume from a previous job?
+  int resume = 0;// resume from a previous job?
 	
-  int outfile = 0;// write output files?
+  int outfile = 1;// write output files?
 	
   int initMPI = 1;// initialize MPI routines?, relevant only if compiling with MPI
 		  // set it to F if you want your main program to handle MPI initialization
 	
-  double logZero = -1E20;// points with loglike < logZero will be ignored by MultiNest
+  double logZero = -1E100;// points with loglike < logZero will be ignored by MultiNest
 	
   int maxiter = 0;// max no. of iterations, a non-positive value means infinity. MultiNest will terminate if either it 
 		  // has done max no. of iterations or convergence criterion (defined through tol) has been satisfied
@@ -571,6 +568,6 @@ int main(int argc, char *argv[])
   void *context = 0;// not required by MultiNest, any additional information user wants to pass	
 	
   // calling MultiNest
-
-  nested::run(IS, mmodal, ceff, nlive, tol, efr, ndims, nPar, nClsPar, maxModes, updInt, Ztol, root, seed, pWrap, fb, resume, outfile, initMPI,logZero, maxiter, LogLike, dumper, context);
+	
+  nested::run(mmodal, ceff, nlive, tol, efr, ndims, nPar, nClsPar, maxModes, updInt, Ztol, root, seed, pWrap, fb, resume, outfile, initMPI,logZero, maxiter, LogLike, dumper, context);
 }

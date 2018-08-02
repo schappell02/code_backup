@@ -1,0 +1,1125 @@
+from gcwork import objects
+from gcwork import starset
+import sc_accel_class as acc
+from gcwork import util
+from gcwork import orbits
+from gcwork import young
+from pysqlite2 import dbapi2 as sqlite
+import MySQLdb as mysqldb
+import scipy
+import pyfits
+from scipy import stats
+from scipy import special
+from scipy import integrate
+from gcwork import starTables
+import pickle
+import nmpfit_sy
+import asciidata, os, sys, pickle
+import nmpfit_sy2 as nmpfit_sy
+from pylab import *
+import numpy as np
+import pylab as py
+import math
+import histNofill
+#import matplotlib.axes3d as p3
+import pdb
+import scipy.optimize as opter
+from scipy.optimize import fsolve
+from matplotlib.ticker import ScalarFormatter 
+# Several functions were taken from:
+# /ghezgroup/code/python/gcwork/polyfit/accel.py,
+# velocity.py and residuals.py, written by JLu.
+
+def usetexTrue():
+    rc('text', usetex=True)
+    rc('font', **{'family':'sans-serif', 'size':16})
+    rc('axes', titlesize=16, labelsize=16)
+    rc('xtick', labelsize=12)
+    rc('ytick', labelsize=12)
+
+def usetexFalse():
+    rc('text', usetex=False)
+    rc('font', family='sans-serif', size=14)
+    rc('axes', titlesize=16, labelsize=16)
+    rc('xtick', labelsize=14)
+    rc('ytick', labelsize=14)
+
+#root = '/u/syelda/research/gc/aligndir/'
+root = '/g/ghez/align/'
+home='/u/schappell/'
+
+pi = math.pi
+
+# Mass and Ro from S0-2 - Ghez et al. 2008
+mass = 4.07e6
+masse = 0.6e6
+dist = 7960.0
+G = 6.6726e-8
+msun = 1.99e33
+GM = G * mass * msun
+mass_g = mass * msun
+masse_g = masse * msun
+rsun = 6.955e10
+sec_in_yr = 3.1557e7
+cm_in_au = 1.496e13
+cm_in_pc = 3.086e18
+km_in_pc = 3.086e13
+au_in_pc = 206265.0
+asy_to_kms = dist * cm_in_au / (1e5 * sec_in_yr)
+as_to_km = dist * cm_in_au / (1e5)
+density0 = 3.2e4
+density0_g = 3.2e4 * msun
+density0e = 1.3e4
+density0e_g = density0e * msun
+GM_as_yr = GM * sec_in_yr**2 * 1e-15 / as_to_km**3
+
+
+def PeriodPlot(mtotSolar=[1.,101.,20.],sepAU=[0.01,10.,0.01]):
+    mtot = np.arange(mtotSolar[0],mtotSolar[1],mtotSolar[2])
+    sep = np.arange(sepAU[0],sepAU[1],sepAU[2])
+
+    py.clf()
+    num = len(mtot)
+    for i in range(num):
+        mtmp = mtot[i]
+        color = np.array([(-0.51*i/float(num))+0.51,0.51*i/float(num),(-0.51*i/float(num))+0.51])
+        #purple to green
+        ptmp = np.sqrt(sep**3 / mtmp) * 365.0
+        py.plot(sep,ptmp,color=color)
+
+#    py.plot([0.0,sepAU[1]],[10.0,10.0],'k')
+    py.xlabel('Seperation (AU)')
+    py.ylabel('Period (days)')
+    py.title(str(mtotSolar[0])+' to '+str(mtotSolar[1])+' solar masses')
+    py.savefig('/u/schappell/plots/period_seperation.png')
+
+def AmpPlot(mtot,numM,sepAU=[0.01,10.,0.01]):
+    sepAU = np.arange(sepAU[0],sepAU[1],sepAU[2])
+    periodYR = np.sqrt(sepAU**3 / mtot)
+
+    periodSEC = periodYR * sec_in_yr
+    mtotG = msun *mtot
+    py.clf()
+    fig1 = py.figure()
+    ax1 = fig1.add_subplot(111)
+
+    for i in range(numM):
+        m2 = (mtotG * float(i+1) / numM)
+        color = np.array([(-1.*i/float(numM))+1.,(-0.45*i/float(numM))+0.45,i/float(numM)])
+        #orange to blue
+        #print color
+        v1 = m2 * (2.0*pi*G/(periodSEC * mtotG**2))**(1./3.)
+        atmp = 2165.* v1/2.99e10
+
+        ax1.plot(periodYR*365.0,atmp,color=color)
+
+    ax1.yaxis.tick_left()
+    py.xlabel('Period (days)')
+    py.ylabel('Amplitude (nm)')
+    py.xlim(0.0,max(periodYR*365.0))
+    cond = np.where(periodYR*365.0 > 0.1)[0]
+    py.ylim(0.0,max(atmp[cond]))
+    ax2 = fig1.add_subplot(111, sharex=ax1,frameon=False)
+    ax2.yaxis.tick_right()
+    ax2.yaxis.set_label_position('right')
+    py.ylabel('Radial Velocity (km/s)')
+    py.ylim(0.0,max(v1[cond]*1e-5))
+    py.title('Mass of Binary: '+str(mtot))
+    py.savefig('/u/schappell/plots/amp_period_'+str(mtot)+'.png')
+
+
+
+class RVstar(object):
+    """
+    For given star:RV, error, dates, number of frames, field, mag, r2d, and prob of being young
+
+    vz - np array of radial velocities in km/s, taken from database, only consider those with errors
+    vzerr - np array of error in radial velocities in km/s
+    date - np array of dates in years of radial velocity measurements
+    frames - np array of number of frames in given observation
+    name - name of star given
+    fieldarray - np array of field star was observed in
+    field - field where star was most recently observed
+    mag - K' magnitude of star
+    r2d - projected distance from Sgr A* in arcsec
+    yng - star's probability of being early-type
+
+    plotRV - plots w/ errorbars the RV measurements of given star, set plotFig to False
+             to have figure open on screen as opposed to being saved
+
+    """
+    def __init__(self, sname):
+        self.vz=np.array([])
+        self.vzerr=np.array([])
+        self.date=np.array([])
+        self.fieldarray=np.array([])
+        self.frames=np.array([])
+        self.name = sname
+        self.mag = -1.0
+
+        #connection to online database
+        database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+        cur = database.cursor()
+
+        #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+        #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+        #cur = connection.cursor()
+        cur.execute("SELECT ddate, vlsr, vz_err,field,nframes FROM spectra WHERE name='%s'"%sname)
+        for row in cur:
+            try:
+                if ((row[2] > 0.0) & (row[1] != None) & (row[2] != None)):
+                    self.vzerr=np.append(self.vzerr,np.float(row[2]))
+                    self.vz=np.append(self.vz,np.float(row[1]))
+                    self.date=np.append(self.date,row[0])
+                    self.fieldarray=np.append(self.fieldarray,row[3])
+                    self.field=row[3]
+                    self.frames=np.append(self.frames,row[4])
+            except:
+                continue
+            
+        #connection = sqlite.connect(dbfile)
+        #cur = connection.cursor()
+        cur = database.cursor()
+        try:
+            cur.execute("SELECT probYngSimPrior FROM unknownSims WHERE name='%s'" %(sname))
+            for row in cur:
+                self.yng = np.float(row[0])
+
+        except:
+            pass
+
+        #connection = sqlite.connect(dbfile)
+        #cur = connection.cursor()
+        cur = database.cursor()
+        self.cnt = len(self.vzerr)
+
+        cur.execute("SELECT young,old,kp,r2d FROM stars WHERE name='%s'" %(sname))
+        for row in cur:
+            self.mag=row[2]
+            self.r2d=row[3]
+            self.max_az = round((GM * 1.0e-5 * sec_in_yr / (row[3]*dist*cm_in_au)**2),2)
+            if ((row[0] == 'T') | (row[1] == 'F')):
+                self.yng = 1.0
+            elif ((row[0] == 'F') | (row[1] == 'T')):
+                self.yng = 0.0
+
+        if ((sname == 'S0-38') | (sname == 'S0-49')):
+            self.yng = 0.0
+        if (sname=='S0-32'):
+            self.yng = 1.0
+
+    def plotRV(self,saveFig=True):
+        if (len(self.vz) > 1):
+            py.clf()
+            py.errorbar(self.date,self.vz,yerr=self.vzerr,fmt='.')
+            py.xlabel('Time (years)')
+            py.xlim([2000,2016])
+            py.ylabel('RV (km/s)')
+            py.title('Radius: '+str(self.r2d)+' as, Kp: '+str(self.mag)+', Prob Young: '+str(self.yng)+', max a$_Z$: '+
+                     str(self.max_az)+' km/s/yr')
+            if (saveFig==False):
+                py.show()
+            else:
+                py.savefig('/u/schappell/plots/RV_'+self.name+'.png')
+        else:
+            print 'Only 1 point, not enough to plot'
+
+    def bestFitLine(self,plotFit=True):
+        if (len(self.vz) > 2):
+            lsq_res = opter.leastsq(chi2_line,[0.0,0.0],args=(self.date,self.vz,self.vzerr),full_output=1)
+            coeff = lsq_res[0]
+            best_fit = self.date * coeff[0] + coeff[1]
+            residuals = self.vz - best_fit
+            red_chi2 = np.sum(residuals**2 / self.vzerr**2 / (len(self.date) - 2.0))
+            print 'Star: '+str(self.name)
+            print 'Mag: '+str(self.mag)
+            print 'R2d: '+str(self.r2d)+' arcsec'
+            print 'Prob Young: '+str(self.yng)
+            print 'Max a_z: '+str(self.max_az)+' km/s/yr'
+            print ''
+            print 'Best fit:'
+            print 'SLOPE: '+str(coeff[0])+' km/s/yr'
+            print 'Y intercept: '+str(coeff[1])+' km/s'
+            print 'Reduced Chi^2: '+str(red_chi2)
+
+            if (plotFit==True):
+                py.clf()
+                py.plot(self.date,best_fit)
+                py.errorbar(self.date,self.vz,yerr=self.vzerr,fmt='.')
+                py.xlabel('Time (years)')
+                py.xlim([2000,2016])
+                py.ylabel('RV (km/s)')
+                py.title('Best fit a$_Z$: '+str(round(coeff[0],2))+' km/s/yr    Max a$_Z$: '+str(self.max_az)+' km/s/yr')
+                py.savefig('/u/schappell/plots/RV_'+str(self.name)+'_bestfitLINE.png')
+
+                py.clf()
+                py.plot([2000,2016],[0.0,0.0])
+                py.errorbar(self.date,residuals,yerr=self.vzerr,fmt='.')
+                py.xlabel('Time (years)')
+                py.xlim([2000,2016])
+                py.ylabel('RV Residuals (km/s)')
+                py.title('Best fit a$_Z$: '+str(round(coeff[0],2))+' km/s/yr    Max a$_Z$: '+str(self.max_az)+' km/s/yr')
+                py.savefig('/u/schappell/plots/RV_'+str(self.name)+'_bfl_res.png')
+
+            return coeff
+
+        else:
+            print 'Only 2 points or less, not enough to fit'
+
+
+    def bestFitLine_sin(self,plotFit=True,guess=[30.0,100.0,0.0]):
+        if (len(self.vz) > 5):
+            coeff = self.bestFitLine(plotFit=plotFit)
+            line_vz = self.date * coeff[0] + coeff[1]
+            line_res = self.vz - line_vz
+
+            lsq_res = opter.leastsq(chi2_sin,guess,args=(self.date,line_res,self.vzerr),full_output=1)
+            coeff_sin = lsq_res[0]
+            best_fit = self.date * coeff[0] + coeff[1] + coeff_sin[0] * np.sin(coeff_sin[1] * self.date - coeff_sin[2])
+            residuals = self.vz - best_fit
+            red_chi2 = np.sum(residuals**2 / self.vzerr**2 / (len(self.date) - 5.0))
+            #print 'Star: '+str(self.name)
+            #print 'Mag: '+str(self.mag)
+            #print 'R2d: '+str(self.r2d)+' arcsec'
+            #print 'Prob Young: '+str(self.yng)
+            #print 'Max a_z: '+str(self.max_az)+' km/s/yr'
+            print ''
+            print 'Best fit SIN:'
+            #print 'SLOPE: '+str(coeff[0])+' km/s/yr'
+            #print 'Y intercept: '+str(coeff[1])+' km/s'
+            print 'SIN AMP '+str(coeff_sin[0])+' km/s'
+            print 'PERIOD '+str(1.0/coeff_sin[1])+' years'
+            print 'Offset '+str(coeff_sin[2])+' radians'
+            
+            print 'Reduced Chi^2: '+str(red_chi2)
+
+            if (plotFit==True):
+                py.clf()
+                py.plot(self.date,best_fit,'bs')
+                py.errorbar(self.date,self.vz,yerr=self.vzerr,fmt='g.')
+                py.xlabel('Time (years)')
+                py.xlim([2000,2016])
+                py.ylabel('RV (km/s)')
+                py.title('Best fit a$_Z$: '+str(round(coeff[0],2))+' km/s/yr, Max a$_Z$: '+str(self.max_az)+' km/s/yr, Period: '
+                         +str(round(1.0/coeff_sin[1],2))+' years')
+                py.savefig('/u/schappell/plots/RV_'+str(self.name)+'_bestfitLINE_sin.png')
+
+                py.clf()
+                py.plot([2000,2016],[0.0,0.0])
+                py.errorbar(self.date,residuals,yerr=self.vzerr,fmt='.')
+                py.xlabel('Time (years)')
+                py.xlim([2000,2016])
+                py.ylabel('RV Residuals (km/s)')
+                py.title('Best fit a$_Z$: '+str(round(coeff[0],2))+' km/s/yr, Max a$_Z$: '+str(self.max_az)+' km/s/yr, Period: '
+                         +str(round(1.0/coeff_sin[1],2))+' years')
+                py.savefig('/u/schappell/plots/RV_'+str(self.name)+'_bfl_sin_res.png')
+        else:
+            print 'Only 5 or less points, not enough to fit'
+
+
+
+def chi2_line(constants, xvar, yvar, sigma):
+    slope, intercept = constants
+    chi2 = (yvar - (xvar*slope + intercept))**2 / sigma**2
+    return chi2
+
+
+def chi2_sin(constants, xvar, yvar, sigma):
+    amp, frequency, offset = constants
+    chi2 = (yvar - (amp*np.sin(2.0*pi*frequency*xvar + offset)))**2 / sigma**2
+    return chi2
+
+
+def chi2_line_sin(constants, xvar, yvar, sigma):
+    slope, intercept, amp, frequency, offset = constants
+    chi2 = (yvar - (xvar*slope + intercept + amp*np.sin(2.0 * pi * frequency * xvar + offset)))**2 / sigma**2
+    return chi2
+
+
+class RVsample(object):
+    """
+    """
+    def __init__(self):
+        rvnames = np.array([])
+
+        database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+        cur = database.cursor()
+
+        #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+        #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+        #cur = connection.cursor()
+        cur.execute('SELECT name,vz_err FROM spectra')
+        for row in cur:
+            try:
+                tmpCheck = np.float(row[1])
+                rvnames = np.append(rvnames,str(row[0]))
+            except:
+                pass
+
+        rvnames = np.unique(rvnames)
+        self.stars = np.array([])
+        for tmpName in rvnames:
+            tmpStar = RVstar(tmpName)
+            if ((len(tmpStar.vzerr) > 0.0) & (tmpStar.mag >= 0.0)):
+                self.stars = np.append(self.stars,tmpStar)
+
+    def plotAllRV(self,minPoints=2):
+        for tmpStar in self.stars:
+            if (len(tmpStar.vz) >= minPoints):
+                tmpStar.plotRV()
+
+    def makeTable(self):
+        out = open('/u/schappell/tables/RVsample.tex','w')
+        out.write('\\documentclass{aastex} \n')
+        out.write('\\begin{singlespace} \n')
+        out.write('\\begin{deluxetable}{lccccc} \n')
+    #out.write('\\rotate \n')
+        out.write('\\tabletypesize{\\small} \n')
+        out.write('\\setlength{\\tabcolsep}{3.0mm} \n')
+        out.write('\\tablewidth{0pt} \n')
+        out.write('\\begin{document} \n')
+        out.write('\\tablecaption{}\n')
+        out.write('\\tablehead{ \n')
+        out.write('  \\colhead{Star} & \n')
+        out.write('  \\colhead{$Kp$} & \n')
+        out.write('  \\colhead{R_{2D}} & \n')
+        out.write('  \\colhead{Number} & \n')
+        out.write('  \\colhead{Probability} & \n')
+        out.write('  \\colhead{Field} & \n')
+        out.write('%\n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{(mag)} & \n')
+        out.write('  \\colhead{(arcsec)} & \n')
+        out.write('  \\colhead{Observations} & \n')
+        out.write('  \\colhead{Young} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('} \n')
+        out.write('\\startdata \n')
+        fmt = '%15s  %1s  %5.2f  %1s  %6.3f  %1s  %6s  %1s  %6.2f  %1s  %7s  %4s\n'
+        for tmpStar in self.stars:
+            if (len(tmpStar.vzerr) >= 1):
+                out.write(fmt % (tmpStar.name,'&',tmpStar.mag,'&',tmpStar.r2d,'&',len(tmpStar.vzerr),'&',tmpStar.yng,'&',
+                                 tmpStar.field, '\\\\'))
+        out.write('\\\\\n')
+        out.write('\\enddata \n')
+        out.write('\\end{deluxetable} \n')
+        out.write('\\end{singlespace} \n')
+        out.write('\\end{document} \n')
+        out.close()
+
+        out = open('/u/schappell/tables/RVsample_yng1.tex','w')
+        out.write('\\documentclass{aastex} \n')
+        out.write('\\begin{singlespace} \n')
+        out.write('\\begin{deluxetable}{lccccc} \n')
+    #out.write('\\rotate \n')
+        out.write('\\tabletypesize{\\small} \n')
+        out.write('\\setlength{\\tabcolsep}{3.0mm} \n')
+        out.write('\\tablewidth{0pt} \n')
+        out.write('\\begin{document} \n')
+        out.write('\\tablecaption{}\n')
+        out.write('\\tablehead{ \n')
+        out.write('  \\colhead{Star} & \n')
+        out.write('  \\colhead{$Kp$} & \n')
+        out.write('  \\colhead{R_{2D}} & \n')
+        out.write('  \\colhead{Number} & \n')
+        out.write('  \\colhead{Probability} & \n')
+        out.write('  \\colhead{Field} & \n')
+        out.write('%\n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{(mag)} & \n')
+        out.write('  \\colhead{(arcsec)} & \n')
+        out.write('  \\colhead{Observations} & \n')
+        out.write('  \\colhead{Young} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('} \n')
+        out.write('\\startdata \n')
+        fmt = '%15s  %1s  %5.2f  %1s  %6.3f  %1s  %6s  %1s  %6.2f  %1s  %7s  %4s\n'
+        for tmpStar in self.stars:
+            if ((len(tmpStar.vzerr) == 1) & (tmpStar.yng == 1.0)):
+                out.write(fmt % (tmpStar.name,'&',tmpStar.mag,'&',tmpStar.r2d,'&',len(tmpStar.vzerr),'&',tmpStar.yng,'&',
+                                 tmpStar.field, '\\\\'))
+        out.write('\\\\\n')
+        out.write('\\enddata \n')
+        out.write('\\end{deluxetable} \n')
+        out.write('\\end{singlespace} \n')
+        out.write('\\end{document} \n')
+        out.close()
+
+        out = open('/u/schappell/tables/RVsample_old1.tex','w')
+        out.write('\\documentclass{aastex} \n')
+        out.write('\\begin{singlespace} \n')
+        out.write('\\begin{deluxetable}{lccccc} \n')
+    #out.write('\\rotate \n')
+        out.write('\\tabletypesize{\\small} \n')
+        out.write('\\setlength{\\tabcolsep}{3.0mm} \n')
+        out.write('\\tablewidth{0pt} \n')
+        out.write('\\begin{document} \n')
+        out.write('\\tablecaption{}\n')
+        out.write('\\tablehead{ \n')
+        out.write('  \\colhead{Star} & \n')
+        out.write('  \\colhead{$Kp$} & \n')
+        out.write('  \\colhead{R_{2D}} & \n')
+        out.write('  \\colhead{Number} & \n')
+        out.write('  \\colhead{Probability} & \n')
+        out.write('  \\colhead{Field} & \n')
+        out.write('%\n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{(mag)} & \n')
+        out.write('  \\colhead{(arcsec)} & \n')
+        out.write('  \\colhead{Observations} & \n')
+        out.write('  \\colhead{Young} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('} \n')
+        out.write('\\startdata \n')
+        fmt = '%15s  %1s  %5.2f  %1s  %6.3f  %1s  %6s  %1s  %6.2f  %1s  %7s  %4s\n'
+        for tmpStar in self.stars:
+            if ((len(tmpStar.vzerr) == 1) & (tmpStar.yng==0.0)):
+                out.write(fmt % (tmpStar.name,'&',tmpStar.mag,'&',tmpStar.r2d,'&',len(tmpStar.vzerr),'&',tmpStar.yng,'&',
+                                 tmpStar.field, '\\\\'))
+        out.write('\\\\\n')
+        out.write('\\enddata \n')
+        out.write('\\end{deluxetable} \n')
+        out.write('\\end{singlespace} \n')
+        out.write('\\end{document} \n')
+        out.close()
+
+        out = open('/u/schappell/tables/RVsample_yng_multi.tex','w')
+        out.write('\\documentclass{aastex} \n')
+        out.write('\\begin{singlespace} \n')
+        out.write('\\begin{deluxetable}{lccccc} \n')
+    #out.write('\\rotate \n')
+        out.write('\\tabletypesize{\\small} \n')
+        out.write('\\setlength{\\tabcolsep}{3.0mm} \n')
+        out.write('\\tablewidth{0pt} \n')
+        out.write('\\begin{document} \n')
+        out.write('\\tablecaption{}\n')
+        out.write('\\tablehead{ \n')
+        out.write('  \\colhead{Star} & \n')
+        out.write('  \\colhead{$Kp$} & \n')
+        out.write('  \\colhead{R_{2D}} & \n')
+        out.write('  \\colhead{Number} & \n')
+        out.write('  \\colhead{Probability} & \n')
+        out.write('  \\colhead{Field} & \n')
+        out.write('%\n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{(mag)} & \n')
+        out.write('  \\colhead{(arcsec)} & \n')
+        out.write('  \\colhead{Observations} & \n')
+        out.write('  \\colhead{Young} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('} \n')
+        out.write('\\startdata \n')
+        fmt = '%15s  %1s  %5.2f  %1s  %6.3f  %1s  %6s  %1s  %6.2f  %1s  %7s  %4s\n'
+        for tmpStar in self.stars:
+            if ((len(tmpStar.vzerr) >= 2) & (tmpStar.yng == 1.0)):
+                out.write(fmt % (tmpStar.name,'&',tmpStar.mag,'&',tmpStar.r2d,'&',len(tmpStar.vzerr),'&',tmpStar.yng,'&',
+                                 tmpStar.field, '\\\\'))
+        out.write('\\\\\n')
+        out.write('\\enddata \n')
+        out.write('\\end{deluxetable} \n')
+        out.write('\\end{singlespace} \n')
+        out.write('\\end{document} \n')
+        out.close()
+
+        out = open('/u/schappell/tables/RVsample_old_mutli.tex','w')
+        out.write('\\documentclass{aastex} \n')
+        out.write('\\begin{singlespace} \n')
+        out.write('\\begin{deluxetable}{lccccc} \n')
+    #out.write('\\rotate \n')
+        out.write('\\tabletypesize{\\small} \n')
+        out.write('\\setlength{\\tabcolsep}{3.0mm} \n')
+        out.write('\\tablewidth{0pt} \n')
+        out.write('\\begin{document} \n')
+        out.write('\\tablecaption{}\n')
+        out.write('\\tablehead{ \n')
+        out.write('  \\colhead{Star} & \n')
+        out.write('  \\colhead{$Kp$} & \n')
+        out.write('  \\colhead{R_{2D}} & \n')
+        out.write('  \\colhead{Number} & \n')
+        out.write('  \\colhead{Probability} & \n')
+        out.write('  \\colhead{Field} & \n')
+        out.write('%\n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{(mag)} & \n')
+        out.write('  \\colhead{(arcsec)} & \n')
+        out.write('  \\colhead{Observations} & \n')
+        out.write('  \\colhead{Young} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('} \n')
+        out.write('\\startdata \n')
+        fmt = '%15s  %1s  %5.2f  %1s  %6.3f  %1s  %6s  %1s  %6.2f  %1s  %7s  %4s\n'
+        for tmpStar in self.stars:
+            if ((len(tmpStar.vzerr) >= 2) & (tmpStar.yng==0.0)):
+                out.write(fmt % (tmpStar.name,'&',tmpStar.mag,'&',tmpStar.r2d,'&',len(tmpStar.vzerr),'&',tmpStar.yng,'&',
+                                 tmpStar.field, '\\\\'))
+        out.write('\\\\\n')
+        out.write('\\enddata \n')
+        out.write('\\end{deluxetable} \n')
+        out.write('\\end{singlespace} \n')
+        out.write('\\end{document} \n')
+        out.close()
+
+
+def PhaseCoverage(period,months=False,years=False,duration=1.0):
+    #Give period in days or set months or years flag
+    #duration given in days
+
+    years_to_days = 365.0
+    months_to_days = years_to_days / 12.0
+
+    obs=np.array([])
+
+    if (months==True):
+        period *= months_to_days
+    elif (years==True):
+        period *= years_to_days 
+    if ((months==True) & (years==True)):
+        print "NOPE! Cannot do that, the period needs to be in either months OR years"
+        stop
+
+    database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+    cur = database.cursor()
+
+    #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+    #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+    #cur = connection.cursor()
+    cur.execute("SELECT ddate FROM observations WHERE field='GC Central'")
+    for row in cur:
+        obs=np.append(obs,np.float(row[0]))
+
+    t0 = np.min(obs)
+    time_days = (obs - t0) * years_to_days 
+    phase = (time_days % period) * 360.0 / period
+    #this assumes that velocity due to binary peaks at first date
+    delta = duration * 360.0 / period
+    degbins = np.arange(0.0,360.0+delta,delta)
+
+    (num,binEnds,other) = py.hist(phase,degbins)
+
+    covered = np.where(num > 0.0)[0]
+    print ""
+    print 'Total Converage:'
+    print float(len(covered))/len(num)
+    print ''
+    print '1st quad:'
+    binEnds = np.delete(binEnds,len(binEnds)-1)
+    tmpDex = np.where((num > 0.0) & (binEnds < 90.0))[0]
+    print float(len(tmpDex))*4.0 / len(num)
+    print ''
+    print '2nd quad:'
+    tmpDex = np.where((num > 0.0) & (binEnds < 180.0) & (binEnds >= 90.0))[0]
+    print float(len(tmpDex))*4.0 / len(num)
+    print ''
+    print '3rd quad:'
+    tmpDex = np.where((num > 0.0) & (binEnds < 270.0) & (binEnds >= 180.0))[0]
+    print float(len(tmpDex))*4.0 / len(num)
+    print ''
+    print '4th quad:'
+    tmpDex = np.where((num > 0.0) & (binEnds < 360.0) & (binEnds >= 270.0))[0]
+    print float(len(tmpDex))*4.0 / len(num)
+    
+
+
+def cadence(period,delta,numObs=10):
+    obs = np.array([i*delta for i in range(numObs)])
+
+    results = np.cos(2.0*pi*obs/period)
+    py.clf()
+    py.plot(obs,results,'o')
+    py.show()
+
+
+
+def mr_period_RV(m1=10.0,poom='days',eccent=0.0,incl=90.0,rverr=20.0):
+    #m1 is the mass of the primary in solar masses
+    #poom, period order of magnitude, days, years, tens, hundreds
+    #mass ratio from zero to one
+    #eccent is eccentricity
+    #incl is inclination in degrees
+
+    mratio = np.arange(0.0,1.0,0.01)
+
+    if (poom=='days'):
+        period = np.arange(0.0,10.0,0.1)*sec_in_yr/365.0
+    elif (poom=='years'):
+        period = np.arange(0.0,10.0,0.01)*sec_in_yr
+    elif (poom=='tens'):
+        period = np.arange(0.0,100.0,0.1)*sec_in_yr
+    elif (poom=='hundreds'):
+        period = np.arange(0.0,1000.0,1.0)*sec_in_yr
+    else:
+        print "NOPE: didn't give valid input for poom"
+        sys.exit()
+
+    RV = np.zeros([len(mratio),len(period)])
+    for i in range(len(mratio)):
+        for j in range(len(period)):
+            RV[i,j] = 1e-5*(2.0*pi*G/period[j])**(1.0/3.0)*m1*math.sin(incl*pi/180.0)/(m1+m1*mratio[i])**(2.0/3.0)/math.sqrt(1.0-eccent**2.0)
+            #RV[i,j] = 1e-5*(2.0*pi*G/(period[j]*(m1*msun)**2))**(1.0/3.0)*m1*msun*mratio[i]/np.sqrt(1.0-eccent**2)
+
+    py.clf()
+
+    period /= sec_in_yr
+    if (poom=='days'):
+        period *= 365.0
+    levels=np.arange(0.0,1000.0,5.0)
+    cont1 = py.contourf(period,mratio,RV,levels)
+    py.contour(period,mratio,RV,levels)
+    levels_sig=np.arange(rverr,rverr*5.0+1.0,rverr)
+    cont2=py.contour(period,mratio,RV,levels_sig,colors='k')
+    if (poom=='days'):
+        py.xlabel('Period (days)')
+    else:
+        py.xlabel('Period (years)')
+    py.ylabel('Mass Ratio')
+    py.title('Mass Primary: '+str(m1))
+    cbar1 = py.colorbar(cont1)
+    cbar1.add_lines(cont2)
+    cbar1.ax.set_ylabel('RV (km/s)')
+    py.savefig('/u/schappell/plots/mratio_period_rv_m1'+str(m1)+'_e'+str(eccent)+'_i'+str(incl)+'.png')
+
+
+def dist_RV(num=100000,m_min=10.0,m_max=40.0,m_slope=-1.7,p_min=0.0,p_max=3.0,
+            p_slope=-0.55,period=False,inclination=True,a_min=0.01,a_max=0.2,
+            a_slope=-0.54,q_min=0.1,q_max=1.0,q_slope=0.0,logPeriod=True,
+            binary_frac=0.8,flag='highM_fromAS',p_peak=5.5,p_meu=5.2,
+            giants=False,fromAS=True,eccent=True):
+
+    #period needs to be in log days if doing it in log space
+    #period in years if doing lognormal
+    #seperation needs to be in AU
+    #mass needs to be in solar masses
+
+    if (q_slope==0.0):
+        q_rand = np.random.rand(num)*0.9 + 0.1
+    else:
+        q_rand = sample_dist(q_min,q_max,q_slope,num=num)
+    m_rand = sample_dist(m_min,m_max,m_slope,num=num) * msun #mass in grams
+    mtot = m_rand*(q_rand + 1.0)
+
+    if (period==True):
+        if (logPeriod==True):
+            print 'Using period distribution: power law in log space'
+            p_rand = 10.0**(sample_dist(p_min,p_max,p_slope,num=num)) * 8.64e4 #period in seconds
+        else:
+            print 'Using period distribution: log normal'
+            p_rand = np.random.lognormal(mean=p_peak,sigma=p_meu,size=num) * sec_in_yr #period in seconds
+        a_rand = (p_rand**2*G*mtot/(4.0*pi**2))**(1.0/3.0)
+
+    elif (fromAS==True):
+        print 'Using seperation distribution: from array in .txt file'
+        a1_matrix = np.loadtxt('/u/schappell/Downloads/HighMassSample1Myr_data-1.txt')
+        a1_array=a1_matrix[:,0]
+        a1dex = np.random.randint(len(a1_array),size=num)
+        a_rand = a1_array[a1dex] * cm_in_au
+        p_rand = np.sqrt(4.0*pi**2*a_rand**3 / (G*mtot))
+    else: #if do not use period distribution, use separation distribution
+        print 'Using separation distribution: given power law'
+        a_rand = sample_dist(a_min,a_max,a_slope,num=num) * cm_in_au
+        p_rand = np.sqrt(4.0*pi**2*a_rand**3 / (G*mtot))
+
+    seperation = ((m_rand/(40.0*msun))**0.78 + (m_rand*q_rand/(40.0*msun))**0.78)*18.0*rsun
+    if (giants==True):
+        seperation = rsun * 200.0
+
+    if (eccent==True):
+        e1_matrix = np.loadtxt('/u/schappell/Downloads/HighMassSample1Myr_data-1.txt')
+        e1_array = e1_matrix[:,1]
+        e1dex = np.random.randint(len(e1_array),size=num)
+        e_rand = e1_array[e1dex]
+        
+        not_touching = np.where(seperation < (a_rand*(1.0 - e_rand)))[0]
+        RVel = (2.0*pi*G/(p_rand*mtot**2))**(1.0/3.0)*m_rand/np.sqrt(1.0-e_rand**2)
+        RVel *= 1e-5 #km/s
+    else:    
+        not_touching = np.where(seperation < a_rand)[0]
+        RVel = (m_rand**3 * 2.0 * G * pi / (p_rand * mtot**2))**(1.0/3.0) / 1e5 #km/s
+    
+    RVel = RVel[not_touching]
+    p_rand = p_rand[not_touching]
+    if (inclination==True):
+        incl = np.arcsin(np.random.rand(len(not_touching))*2.0 - 1.0)
+        RVel *= abs(np.sin(incl))
+
+    py.clf()
+#    bins = np.arange(0.0,np.max(RVel+1.0),10.0)
+#    py.hist(RVel,bins,normed=True)
+    hist,bins = np.histogram(RVel,bins=70)
+    widths = np.diff(bins)
+    hist = hist* binary_frac / np.sum(hist*widths)
+    py.bar(bins[:-1],hist,widths)
+    py.xlabel('Radial Velocity (km/s)')
+    py.savefig('/u/schappell/plots/RV_dist_'+flag+'.png')
+
+
+
+#    bsize = int(np.max(p_rand/8.64))/5.0e5
+#    bins = np.arange(0.0,np.max(p_rand/8.64e4)+1.0,0.2)
+#    py.hist(p_rand/8.64e4,bins,normed=True)
+    py.clf()
+    #pdb.set_trace()
+    if (giants==True):
+        hist,bins=np.histogram(p_rand/sec_in_yr,range=[0.0,4.0],bins=70)
+    else:
+        hist,bins=np.histogram(p_rand/8.64e4,range=[0.0,1000.0], bins=5000)
+    widths = np.diff(bins)
+    hist = hist * binary_frac / float(len(p_rand)) / widths
+    py.bar(bins[:-1],hist,widths)
+    if (giants==True):
+        py.xlabel('Period (Years)')
+    else:
+        py.xlim([0.0,12.0])
+        py.xlabel('Period (Days)')
+    #py.xlim([0.0,12.0])
+    py.savefig('/u/schappell/plots/period_dist_'+flag+'.png')
+
+    #get distribution of expect changes in RV with two observations
+    obs_dex = np.random.randint(len(RVel),size=num)
+    phase_1 = np.random.rand(num)*2.0*pi
+    phase_2 = np.random.rand(num)*2.0*pi
+    if (eccent==True):
+        e_rand = e_rand[not_touching]
+        e_obs = e_rand[obs_dex]
+        delta_RV = RVel[obs_dex]*abs(np.sin(phase_1)*np.sqrt(1.0+e_obs*np.cos(phase_1))-np.sin(phase_2)*np.sqrt(1.0+e_obs*np.cos(phase_2)))
+    else:
+        delta_RV = RVel[obs_dex]*abs(np.sin(phase_1) - np.sin(phase_2))
+
+    py.clf()
+    hist,bins = np.histogram(delta_RV,bins=300)
+    widths = np.diff(bins)
+    hist = hist* binary_frac / np.sum(hist*widths)
+    py.bar(bins[:-1],hist,widths)
+    py.xlabel('Change in RV (km/s)')
+    py.ylabel('Normalized Frequency')
+    py.xlim([0,200])
+    py.savefig('/u/schappell/plots/deltaRV_dist_'+flag+'.png')
+
+    py.clf()
+    pl_phase = np.arange(0.0,6.29,0.01)
+    py.plot(pl_phase,100.0*np.sin(pl_phase)*np.sqrt(1.0+0.9*np.cos(pl_phase)))
+    plph_rand = np.random.rand(2)*2.0*pi
+    py.errorbar(plph_rand,100.0*np.sin(plph_rand)*np.sqrt(1.0+0.9*np.cos(plph_rand)),yerr=[10.0,10.0],fmt='o')
+    py.xlabel('Phase (radian)')
+    py.ylabel('Radial Velocity (km/s)')
+    py.xlim([0.0,2.0*pi])
+    py.savefig('/u/schappell/plots/phase_RV_one.png')
+
+    name,kp_tab,xtab,ytab,r2d_tab,field,RVz,RVerr,ddate_tab,numobs = yng_RVerr()
+    p_detect = np.zeros(len(RVerr))
+    for i in range(len(RVerr)):
+        tmp_err=RVerr[i]
+        det_dex = np.where(delta_RV >= 2.0*tmp_err)[0]
+        p_detect[i] = binary_frac * np.float(len(det_dex)) / len(delta_RV)
+
+    fieldex = np.where((field=='S') | (field=='E') |(field=='SE') | (name=='S1-12') | (name=='S1-14') |
+                       (name=='S1-2') | (name=='S1-21') | (name=='S1-33') | (name=='S1-8'))[0]
+
+    #pdb.set_trace()
+
+    #fieldex = np.where(r2d >= 1.0)[0]
+
+    out = open('/u/schappell/tables/RV_prob.tex','w')
+    out.write('\\documentclass{aastex} \n')
+    out.write('\\begin{singlespace} \n')
+    out.write('\\begin{deluxetable}{lcccccccccc} \n')
+    #out.write('\\rotate \n')
+    out.write('\\tabletypesize{\\small} \n')
+    out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
+    out.write('\\tablewidth{0pt} \n')
+    out.write('\\begin{document} \n')
+    out.write('\\tablecaption{}\n')
+    out.write('\\tablehead{ \n')
+    out.write('  \\colhead{Star} & \n')
+    out.write('  \\colhead{$Kp$} & \n')
+    out.write('  \\colhead{$X$} & \n')
+    out.write('  \\colhead{$Y$} & \n')
+    out.write('  \\colhead{R_{2D}} & \n')
+    out.write('  \\colhead{Field} & \n')
+    out.write('  \\colhead{RV} & \n')
+    out.write('  \\colhead{$\sigma$_{RV}} & \n')
+    out.write('  \\colhead{Date} & \n')
+    out.write('  \\colhead{Prob} & \n')
+    out.write('  \\colhead{Repeat} & \n')
+    out.write('%\n')
+    out.write('  \\colhead{} & \n')
+    out.write('  \\colhead{(mag)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{(arcsec)} & \n')
+    out.write('  \\colhead{} & \n')
+    out.write('  \\colhead{(km/s)} & \n')
+    out.write('  \\colhead{(km/s)} & \n')
+    out.write('  \\colhead{(years)} & \n')
+    out.write('  \\colhead{Detect} & \n')
+    out.write('  \\colhead{Obs} & \n')
+    out.write('} \n')
+    out.write('\\startdata \n')
+    fmt = '%15s  %1s  %5.2f  %1s  %6.3f  %1s  %6.3f  %1s  %6.3f  %1s  %4s  %1s  %5.2f  %1s  %5.2f  %1s  %5.2f  %1s  %2.4f  %1s  %3s  %4s\n'
+    for j in fieldex:
+        if (name[j]=='S1-21'):
+            field[j] = 'C'
+
+        if (field[j] == 'C'):
+            tmpYN = 'Yes'
+        else:
+            tmpYN = 'No'
+
+        out.write(fmt % (name[j],'&',kp_tab[j],'&',xtab[j],'&',ytab[j],'&',r2d_tab[j],'&',field[j],'&',RVz[j],'&',
+                         RVerr[j],'&',ddate_tab[j],'&',p_detect[j],'&',tmpYN, '\\\\'))
+    out.write('\\\\\n')
+    out.write('\\enddata \n')
+    out.write('\\end{deluxetable} \n')
+    out.write('\\end{singlespace} \n')
+    out.write('\\end{document} \n')
+    out.close()
+    
+
+#    pdb.set_trace()
+    return p_rand/8.64e4
+
+
+def sample_dist(d_min,d_max,d_slope,num=1000):
+    a_value = np.array([[d_min**(d_slope+1.0)/(d_slope+1.0), 1.0],[d_max**(d_slope+1.0)/(d_slope+1.0), 1.0]])
+    b_value = np.array([0.0,1.0])
+    d_const = np.linalg.solve(a_value,b_value)
+
+    d_rand = np.random.rand(num)
+    sample = ((d_rand - d_const[1])*(d_slope+1.0)/d_const[0])**(1.0/(d_slope+1.0))
+
+    return sample
+
+
+def obs_period(minFrames=3):
+
+    database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+    cur = database.cursor()
+
+    #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+    #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+    #cur = connection.cursor()
+    cur.execute("SELECT ddate FROM observations WHERE field='GC Central' AND nFrames>%d" %(minFrames-1))
+    obs=np.array([])
+    for row in cur:
+        obs=np.append(obs,np.float(row[0]))
+
+    delta_t=np.array([])
+    for i in range(len(obs)):
+        for j in range(len(obs)-1-i):
+            tmp = abs(obs[i] - obs[j+1+i]) *365.0
+            delta_t=np.append(delta_t,tmp)
+
+    bins = np.arange(0.0,np.max(delta_t)+1.0,20.0)
+    py.clf()
+    py.hist(delta_t,bins,normed=False)
+    py.xlabel('Observing Period (Days)')
+    py.savefig('/u/schappell/plots/obs_cadence.png')
+
+    return delta_t
+
+
+def compare_period(minFrames=3,num=100000,m_min=10.0,m_max=40.0,m_slope=-1.7,
+                   p_min=0.0,p_max=3.0,p_slope=-0.55,period=False,inclination=True,
+                   a_min=0.01,a_max=0.2,a_slope=-0.54,q_min=0.1,q_max=1.0,
+                   q_slope=0.0,logPeriod=True,binary_frac=0.8,p_peak=5.5,p_meu=5.2,
+                   flag='highM_fromAS',giants=False,fromAS=True,eccent=True):
+
+    obs = obs_period(minFrames=minFrames)
+    pred = dist_RV(num=num,m_min=m_min,m_max=m_max,m_slope=m_slope,p_min=p_min,
+                   p_max=p_max,p_slope=p_slope,period=period,inclination=inclination,
+                   a_min=a_min,a_max=a_max,a_slope=a_slope,q_min=q_min,q_max=q_max,
+                   logPeriod=logPeriod,binary_frac=binary_frac,flag=flag,q_slope=q_slope,
+                   p_peak=p_peak,p_meu=p_meu,giants=giants,fromAS=fromAS,eccent=eccent)
+
+    py.clf()
+    #bins=np.arange(0.0,3.01,0.05)
+    hist, bins = np.histogram(np.log10(pred),bins=70)
+    widths = np.diff(bins)
+    hist = hist * binary_frac / np.sum(hist*widths)
+    py.bar(bins[:-1],hist,widths,label='Model')
+    #py.hist(np.log10(pred),bins,label='Model',normed=True)
+    py.hist(np.log10(obs),bins,label='Observations',normed=True,facecolor='g')
+    py.xlabel('Log Period (Days)')
+    py.ylim([0.0,(int(np.max(hist*10.0))+2.0)/10.0])
+    py.legend()
+    py.savefig('/u/schappell/plots/compare_period_'+flag+'.png')
+    #pdb.set_trace()
+
+
+def vel_dis():
+
+    stars=np.loadtxt('table_info.tab',usecols=[0],dtype='string')
+    disk=np.loadtxt('table_info.tab',usecols=[14])
+
+    database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+    #cur = database.cursor()
+
+    #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+    vx=np.array([])
+    vy=np.array([])
+    vz=np.array([])
+    err=np.array([])
+    prob=np.array([])
+
+    for i in range(len(stars)):
+        tmpStar = str(stars[i])
+        #connection = sqlite.connect(dbfile)
+        # Create a cursor object
+        cur = database.cursor()
+        cur.execute("SELECT vx,vy,vz,vz_err FROM stars WHERE name='%s'" &(tmpStar))
+        for row in cur:
+            try:
+                vz=np.append(vz,np.float(row[2]))
+                err=np.append(err,np.float(row[3]))
+                vx=np.append(vx,row[0]*asy_to_kms/1000.0)
+                vy=np.append(vy,row[1]*asy_to_kms/1000.0)
+                prob=np.append(prob,disk[i])
+            except:
+                continue
+
+    py.clf()
+    py.errorbar(np.log(prob+1e-4),vz,yerr=er,fmt='.')
+    py.show()
+
+
+def yng_RVerr():
+
+    database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+    cur = database.cursor()
+
+    #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+    #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+    #cur = connection.cursor()
+    cur.execute("SELECT vz,vz_err,name,x,y,kp,r2d,ddate FROM stars WHERE young='T'")
+    RVz = np.array([])
+    RV_err = np.array([])
+    name = np.array([])
+    xtab = np.array([])
+    ytab = np.array([])
+    kp_tab = np.array([])
+    r2d_tab = np.array([])
+    ddate_tab = np.array([])
+    for row in cur:
+        try:
+            RVz = np.append(RVz,np.float(row[0]))
+            RV_err = np.append(RV_err,np.float(row[1]))
+            name = np.append(name,str(row[2]))
+            xtab = np.append(xtab,row[3])
+            ytab = np.append(ytab,row[4])
+            kp_tab = np.append(kp_tab,row[5])
+            r2d_tab = np.append(r2d_tab,row[6])
+            ddate_tab = np.append(ddate_tab,row[7])
+        except:
+            continue
+    py.clf()
+    py.hist(RV_err,bins=40)
+    py.xlabel('RV error (km/s)')
+    py.savefig('/u/schappell/plots/yng_RVerr_dist.png')
+
+    #pdb.set_trace()
+
+    field = np.chararray(len(name),itemsize=6)
+    numobs = np.zeros(len(name))
+    for i in range(len(name)):
+        tmpName = name[i]
+        cur = connection.cursor()
+        cur.execute("SELECT field FROM spectra WHERE name='%s'" %(tmpName))
+        for row in cur:
+            if ((row[0]=='C') | (row[0]=='N') | (row[0]=='S') | (row[0]=='E') | (row[0]=='W') | 
+                (row[0]=='NW') | (row[0]=='NE') | (row[0]=='SW') | (row[0]=='SE')):
+                field[i] = row[0]
+
+            numobs[i] += 1
+
+    return name,kp_tab,xtab,ytab,r2d_tab,field,RVz,RV_err,ddate_tab,numobs
+
+
+
+def equ_width_plots(starName):
+
+    EW = np.array([])
+    EW_err = np.array([])
+    RV = np.array([])
+    RV_err = np.array([])
+    date = np.array([])
+
+    #connection to online database
+    database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+    cur = database.cursor()
+
+        #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+        #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+        #cur = connection.cursor()
+    cur.execute("SELECT ddate,vlsr,vz_err,eq_width,eq_width_err FROM spectra WHERE name='%s'"%starName)
+    for row in cur:
+        try:
+            if ((row[1] != None) & (row[2] != None) & (row[3] != None) & (row[4] != None)):
+                date = np.append(date,row[0])
+                RV = np.append(RV,row[1])
+                RV_err = np.append(RV_err,row[2]) 
+                EW = np.append(EW,row[3])
+                EW_err = np.append(EW_err,row[4])
+        except:
+            continue
+
+    py.clf()
+    py.errorbar(date,EW,yerr=EW_err,fmt='.')
+    py.xlabel('Date (year)')
+    py.ylabel('Equivalent Width')
+    py.savefig('/u/schappell/plots/'+str(starName)+'_EW_date.png')
+    py.clf()
+    py.errorbar(RV,EW,xerr=RV_err,yerr=EW_err,fmt='.')
+    py.xlabel('RV (km/s)')
+    py.ylabel('Equivalent Width')
+    py.savefig('/u/schappell/plots/'+str(starName)+'_EW_RV.png')
+    py.clf()
+
+
+
+
+def SNR_plot(starName):
+
+    SNR = np.array([])
+    date = np.array([])
+
+    #connection to online database
+    database = mysqldb.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
+    cur = database.cursor()
+
+        #dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    # Create a connection to the database file
+        #connection = sqlite.connect(dbfile)
+    # Create a cursor object
+        #cur = connection.cursor()
+    cur.execute("SELECT ddate,SNR FROM spectra WHERE name='%s'"%starName)
+    for row in cur:
+        try:
+            if ((row[1] != None) & (row[1] != 0)):
+                date = np.append(date,row[0])
+                SNR = np.append(SNR,row[1])
+        except:
+            continue
+
+    if (starName == 'S0-2'):
+        date = np.append(date,2016.3675)
+        SNR = np.append(SNR,46.220861)
+
+    py.clf()
+    py.plot(date,SNR,'o')
+    py.xlabel('Date (year)')
+    py.ylabel('SNR')
+    py.savefig('/u/schappell/plots/'+str(starName)+'_spec_SNR.png')
+    py.clf()
+

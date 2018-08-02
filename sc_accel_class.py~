@@ -5,7 +5,8 @@ import math
 import numpy as np
 import pylab as py
 from pylab import *
-from gcwork import util
+import objects
+import util
 import gcutil
 from gcwork import starset
 from gcwork import objects
@@ -139,7 +140,7 @@ class accelClass(starset.StarSet):
 
         # prefix for plots
         #self.plotPrefix = 'plots/'+os.path.split(os.path.dirname(rootDir))[1]+'_'
-        self.plotPrefix = '/u/schappell/plots/'
+        self.plotPrefix = rootDir + 'plots/'
         self.prefix = os.path.split(os.path.dirname(rootDir))[1]
         # Load GC constants
         cc = objects.Constants()

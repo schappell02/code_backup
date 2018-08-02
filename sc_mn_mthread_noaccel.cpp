@@ -36,8 +36,8 @@ using std::endl;
 using namespace boost::numeric;
 
 const double PI = 3.14159265358979;
-const double mass = 3.958e6; //Ghez 2008
-const double dist = 7787.0; //Ghez 2008
+const double mass = 4.07e6; //Ghez 2008
+const double dist = 7960.0; //Ghez 2008
 const double G = 6.6726e-8;
 const double msun = 1.99e33;
 const double sec_in_yr = 3.1557e7;
@@ -130,15 +130,15 @@ double pos_int(double ax, void* data)
 double star_likeZ(double z0modv, void* data)
 {
   int iii = *(int *)data;
-  if (arv[iii] < 0.0)
-  {
-    amodv[iii] = -1.0*GM*r2dv[iii] / pow((sqrt(r2dv[iii]*r2dv[iii] + z0modv*z0modv)),3.0);
-    like_returnv[iii] = exp(-1.0*(arv[iii]-amodv[iii])*(arv[iii]-amodv[iii])/(2.0*arve[iii]*arve[iii]));
-  }
-  else
-  {
-      like_returnv[iii] = 1.0;
-    }
+  //if (arv[iii] < 0.0)
+  //{
+  //  amodv[iii] = -1.0*GM*r2dv[iii] / pow((sqrt(r2dv[iii]*r2dv[iii] + z0modv*z0modv)),3.0);
+  //  like_returnv[iii] = exp(-1.0*(arv[iii]-amodv[iii])*(arv[iii]-amodv[iii])/(2.0*arve[iii]*arve[iii]));
+  //}
+  //else 
+  //{
+  like_returnv[iii] = 1.0;
+  //    }
 
   like_returnv[iii] *= pow((1.0+pow((sqrt(r2dv[iii]*r2dv[iii]+z0modv*z0modv)/brmodv),demodv)),((gmodv-almodv)/demodv));
   like_returnv[iii] *= pow((r2dv[iii]*r2dv[iii]+z0modv*z0modv)/(brmodv*brmodv),(gmodv/-2.0));
@@ -220,7 +220,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 		//blahDex += 1.0;
 		//density_gcowsv += rho_gcows[iii];
 		//mutex2.unlock();
-          }
+	      }
 	  }
       };
       for (auto &&elem : rho_gcows)
@@ -258,7 +258,7 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 	  //cout << "norm pos " << norm_posv[iii] << endl;
 	  //cout << "Density norm" << density_normv << endl;
 	  //cout << "prob old " << pOldv[iii] << endl;
-	  starlikev[iii] *= cmodv / (density_normv * norm_posv[iii]);
+	  starlikev[iii] *= cmodv / (density_normv);
 	  //mutex.lock();
 	  //double tmpvalue = pOldv[iii] * log(starlikev[iii]);
 	  //if(tmpvalue < -1e20){tmpvalue=0.0;}

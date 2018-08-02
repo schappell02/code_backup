@@ -11,9 +11,7 @@
 #include <float.h>
 #include "multinest.h"
 #include "gauss_legendre.h"
-//#include "sc_mn_lib.h"
 #include "ez_thread.hpp"
-//#include "gsl/gsl/gsl_integration.h"
 #include <iostream>
 #include <iomanip>
 #include <boost/config/user.hpp>
@@ -23,7 +21,6 @@
 #include <string>
 #include <vector>
 #include <iomanip>
-//using namespace std;
 using std::cin;
 using std::cout;
 using std::vector;
@@ -36,8 +33,8 @@ using std::endl;
 using namespace boost::numeric;
 
 const double PI = 3.14159265358979;
-const double mass = 3.958e6; //Ghez 2008
-const double dist = 7787.0; //Ghez 2008
+const double mass = 3.960e6; //From my 14_06_18 align, with less RV
+const double dist = 7828.0;
 const double G = 6.6726e-8;
 const double msun = 1.99e33;
 const double sec_in_yr = 3.1557e7;
@@ -50,7 +47,7 @@ const double as_to_km = dist * cm_in_au / (1e5);
 const double GM = G * mass* msun;
 
 std::mutex mutex2;
-int NThreads = 14;
+int NThreads = 1;
 
 //define limits of priors
 double min_g = -3.0;
@@ -80,8 +77,7 @@ int num_stars, num_gcows, num_maser;
 
 
 
-//vector<double> amodv, like_returnv, like_returnvm, Xgcows, Ygcows, rho_gcows, Rgcows, Zmax_gcows;
-//vector<double> Zmax_star, Zmax_starm, starlikev, starlikevm, norm_posv, min_accelv, max_accelv;
+
 
 double density_intZcyl(double Zprime, void* data)
 {
@@ -109,14 +105,7 @@ double density_intZ(double Zprime, void* data)
 		  ((gmodv-almodv)/demodv)));
 }
 
-//double density_intZBLAH(double Zprime, void *data)
-//{
-//  double tmpvalue = pow((sqrt(Xprime*Xprime + Yprime*Yprime + Zprime*Zprime)/brmodv),demodv);
-  //cout << "X and Y " << Xprime << " " << Yprime << endl;
-  //cout << "tmpvalue " << tmpvalue << endl;
-//  return fabs(dxy*dxy*pow((Xprime*Xprime + Yprime*Yprime + Zprime*Zprime)/(brmodv*brmodv),(gmodv/-2.0))*
-//	      pow((1.0+tmpvalue),((gmodv-almodv)/demodv)));
-//}
+
 
 
 double pos_int(double ax, void* data)
@@ -137,8 +126,8 @@ double star_likeZ(double z0modv, void* data)
   }
   else
   {
-      like_returnv[iii] = 1.0;
-    }
+    like_returnv[iii] = 1.0;
+  }
 
   like_returnv[iii] *= pow((1.0+pow((sqrt(r2dv[iii]*r2dv[iii]+z0modv*z0modv)/brmodv),demodv)),((gmodv-almodv)/demodv));
   like_returnv[iii] *= pow((r2dv[iii]*r2dv[iii]+z0modv*z0modv)/(brmodv*brmodv),(gmodv/-2.0));
@@ -176,55 +165,40 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
   gmodv = Cube[0] * (max_g - min_g) + min_g;
   if (fabs(remainder(situation,2)) > 0.0)
     {
-      almodv = Cube[1] * (max_a - min_a) + min_a;
-      demodv = Cube[2] * (max_d - min_d) + min_d;
-      brmodv = Cube[3] * (max_b - min_b) + min_b; //flat prior on r_break
+      almodv = 0.3;//Cube[1] * (max_a - min_a) + min_a;
+      demodv = 0.3;//Cube[2] * (max_d - min_d) + min_d;
+      brmodv = 0.5;//Cube[3] * (max_b - min_b) + min_b; //flat prior on r_break
       //brmodv = exp((log(max_b)-log(min_b))*Cube[3] + log(min_b)); //log prior on r_break
       //brmodv = sqrt(2.0) * sigma_b * boost::math::erf_inv(2.0*Cube[3] - 1.0) + meu_b; //gaussian prior on r_break
 
 
-      if (situation == 3){cmodv = Cube[4];}
+      if (situation == 3){cmodv = 0.3;}//Cube[4];}
     }
   density_normv= 0.0;
-  //double density_gcowsv = 0.0;
-  //double density_schodelv = 0.0;
   double total_lnLv = 0.0;
-  //double blahDex = 0.0;
 
   if (nonRadial > 0)
     {
       ez_thread(threadnum, NThreads)
       {
-	for(int i=threadnum; i<num_gcows; i+=NThreads)
-	  {
-	    int iii = i;
-	    //Rprime = sqrt((gcows_vrows[iii]-1500.0)*(gcows_vrows[iii]-1500.0)+(gcows_vcols[iii]-1500.0)*(gcows_vcols[iii]-1500.0))*dxy;
-	    //double max_Zv = sqrt(max_r*max_r - Rprime*Rprime);
-	    if ((Rgcows[iii] < Rcut) & (Rgcows[iii] >= 0.0))
-	      {
-		//Xprime = sqrt((gcows_vcols[iii]-1500.0)*(gcows_vcols[iii]-1500.0))*dxy;
-		//Yprime = sqrt((gcows_vrows[iii]-1500.0)*(gcows_vrows[iii]-1500.0))*dxy;
-		//double tmpDen = gauss_legendre(100,density_intZBLAH,NULL,0.0,max_Zv);
-		//double tmpDen, result_error;
-		//quadrature::adaptive().relative_accuracy(1e-5).absolute_accuracy(1e-7)(density_intZBLAH,0.0,max_Zv,tmpDen,result_error);
-		rho_gcows[iii] = gauss_legendre(100,density_intZ,&iii,0.0,Zmax_gcows[iii]);
-		if (rho_gcows[iii] <= 0.0)
-		  {
-		    cout << "Integration problem with GCOWS density norm" << endl;
-		  }
-	      //cout << iii << " max Z " << std::setprecision(20) << max_Zv << " and density " << std::setprecision() << tmpDen << endl;
-	      //tmpDen = 1e47;
-		//density_normv += tmpDen;
-		//density_gcowsv += ;
-		//mutex2.lock();
-		//blahDex += 1.0;
-		//density_gcowsv += rho_gcows[iii];
-		//mutex2.unlock();
+          for(int i=threadnum; i<num_gcows; i+=NThreads)
+          {
+              int iii = i;
+
+              if ((Rgcows[iii] < Rcut) & (Rgcows[iii] >= 0.0))
+              {
+                  rho_gcows[iii] = gauss_legendre(100,density_intZ,&iii,0.0,Zmax_gcows[iii]);
+                  
+                  if (rho_gcows[iii] <= 0.0)
+                  {
+                      cout << "Integration problem with GCOWS density norm" << endl;
+                  }
+
+              }
           }
-	  }
       };
-      for (auto &&elem : rho_gcows)
-	density_normv += elem;
+        for (auto &&elem : rho_gcows)
+    density_normv += elem;
     }
 
   else
@@ -235,79 +209,59 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 
 
   density_normv *= cmodv;
-  //density_gcowsv *= cmodv;
+    
   if (situation > 2)
     {
       double tmp = gauss_legendre(100,density_intR,NULL,innerCut,outerCut);
       if (tmp <= 0.0)
-	{
-	  cout << "Schodel density norm integration is 0, something is wrong" << endl;
-	}
+      {
+          cout << "Schodel density norm integration is 0, something is wrong" << endl;
+      }
       density_normv += (1.0 - cmodv) * tmp;
-      //density_schodelv += (1.0 - cmodv) * tmp;
     }
 
   ez_thread(threadnum,NThreads)
     {
       for(int i=threadnum; i<num_stars; i+=NThreads)
-	{
-	  int iii = i;
-	  starlikev[iii] = gauss_legendre(100,star_likeZ,&iii,0.0,Zmax_star[iii]);
-	  //cout << "INDEX " << iii << endl;
-	  //cout << "starlikev  " << starlikev[iii] << endl;
-	  //cout << "norm pos " << norm_posv[iii] << endl;
-	  //cout << "Density norm" << density_normv << endl;
+      {
+          int iii = i;
+          starlikev[iii] = gauss_legendre(100,star_likeZ,&iii,0.0,Zmax_star[iii]);
+	  cout << "INDEX " << iii << endl;
+	  cout << "starlikev  " << starlikev[iii] << endl;
+	  cout << "norm pos " << norm_posv[iii] << endl;
+	  cout << "Density norm" << density_normv << endl;
 	  //cout << "prob old " << pOldv[iii] << endl;
-	  starlikev[iii] *= cmodv / (density_normv * norm_posv[iii]);
-	  //mutex.lock();
-	  //double tmpvalue = pOldv[iii] * log(starlikev[iii]);
-	  //if(tmpvalue < -1e20){tmpvalue=0.0;}
-	  //if(tmpvalue != tmpvalue){tmpvalue = 0.0;}
-	  //if(isinf(tmpvalue)==1){tmpvalue = 0.0;}
-	  starlikev[iii] = pOldv[iii] * log(starlikev[iii]);
-	  if(starlikev[iii] < -1e20){starlikev[iii]=0.0;}
-	  if(starlikev[iii] != starlikev[iii]){starlikev[iii] = 0.0;}
-	  if(isinf(starlikev[iii])==1){starlikev[iii] = 0.0;}
-	  //cout << "Final " << tmpvalue << endl;
-	  //cout << "Current total " << total_lnLv+tmpvalue << endl;
-	  //cout << " " << endl;
-	  //total_lnLv += tmpvalue;
-	  //mutex.unlock();
-	}
+          starlikev[iii] *= cmodv / (density_normv * norm_posv[iii]);
+          starlikev[iii] = pOldv[iii] * log(starlikev[iii]);
+          if(starlikev[iii] < -1e20){starlikev[iii]=0.0;}
+          if(starlikev[iii] != starlikev[iii]){starlikev[iii] = 0.0;}
+          if(isinf(starlikev[iii])==1){starlikev[iii] = 0.0;}
+      }
     };
-      for (auto &&elem : starlikev)
+        for (auto &&elem : starlikev)
 	total_lnLv += elem;
+    
   if (situation > 2)
     {
       ez_thread(threadnum,NThreads)
-	{
-	  for(int i=threadnum; i<num_maser; i+=NThreads)
-	    {
-	      int iii = i;
-	      starlikevm[iii] = gauss_legendre(100,star_likeZmaser,&iii,0.0,Zmax_starm[iii]);
+        {
+            for(int i=threadnum; i<num_maser; i+=NThreads)
+            {
+                int iii = i;
+                starlikevm[iii] = gauss_legendre(100,star_likeZmaser,&iii,0.0,Zmax_starm[iii]);
 	      //cout << "INDEX " << iii << endl;
 	      //cout << "starlikev  " << starlikevm[iii] << endl;
 	      //cout << "Density norm " << density_normv << endl;
 	      //cout << "prob old " << pOldvm[iii] << endl;
-	      starlikevm[iii] *= (1.0 - cmodv) / density_normv;
-	      //mutex.lock();
-	      //double tmpvalue = pOldvm[iii] * log(starlikevm[iii]);
-	      //if(tmpvalue < -1e20){tmpvalue=0.0;}
-	      //if(tmpvalue != tmpvalue){tmpvalue = 0.0;}
-	      //if(isinf(tmpvalue)==1){tmpvalue = 0.0;}
-	      starlikevm[iii] = pOldvm[iii] * log(starlikevm[iii]);
-	      if(starlikevm[iii] < -1e20){starlikevm[iii]=0.0;}
-	      if(starlikevm[iii] != starlikevm[iii]){starlikevm[iii] = 0.0;}
-	      if(isinf(starlikevm[iii])==1){starlikevm[iii] = 0.0;}
-	      //cout << "Final " << tmpvalue << endl;
-	      //cout << "Current total " << total_lnLv+tmpvalue << endl;
-	      //cout << " " << endl;
-	      //total_lnLv += tmpvalue;
-	      //mutex.unlock(); 
-	    }
-	};
-      for (auto &&elem : starlikevm)
-	total_lnLv += elem;
+                starlikevm[iii] *= (1.0 - cmodv) / density_normv;
+                starlikevm[iii] = pOldvm[iii] * log(starlikevm[iii]);
+                if(starlikevm[iii] < -1e20){starlikevm[iii]=0.0;}
+                if(starlikevm[iii] != starlikevm[iii]){starlikevm[iii] = 0.0;}
+                if(isinf(starlikevm[iii])==1){starlikevm[iii] = 0.0;}
+            }
+        };
+        for (auto &&elem : starlikevm)
+    total_lnLv += elem;
     }
 
   //vector<double> testVal = LogLike2(Cube);
@@ -333,30 +287,30 @@ void LogLike(double *Cube, int &ndim, int &npars, double &lnew, void *context)
 
 
 
-void dumper(int &nSamples, int &nlive, int &nPar, double **physLive, double **posterior, double **paramConstr, double &maxLogLike, double &logZ, double &logZerr, void *context)
+void dumper(int &nSamples, int &nlive, int &nPar, double **physLive, double **posterior, double **paramConstr, double &maxLogLike, double &logZ, double &INSlogZ, double &logZerr, void *context)
 {
-	// convert the 2D Fortran arrays to C++ arrays
-	
-	
-	// the posterior distribution
-	// postdist will have nPar parameters in the first nPar columns & loglike value & the posterior probability in the last two columns
-	
-	int i, j;
-	
-	double postdist[nSamples][nPar + 2];
-	for( i = 0; i < nPar + 2; i++ )
-		for( j = 0; j < nSamples; j++ )
-			postdist[j][i] = posterior[0][i * nSamples + j];
-	
-	
-	
-	// last set of live points
-	// pLivePts will have nPar parameters in the first nPar columns & loglike value in the last column
-	
-	double pLivePts[nlive][nPar + 1];
-	for( i = 0; i < nPar + 1; i++ )
-		for( j = 0; j < nlive; j++ )
-			pLivePts[j][i] = physLive[0][i * nlive + j];
+    // convert the 2D Fortran arrays to C++ arrays
+    
+    
+    // the posterior distribution
+    // postdist will have nPar parameters in the first nPar columns & loglike value & the posterior probability in the last two columns
+    
+    int i, j;
+    
+    double postdist[nSamples][nPar + 2];
+    for( i = 0; i < nPar + 2; i++ )
+    for( j = 0; j < nSamples; j++ )
+    postdist[j][i] = posterior[0][i * nSamples + j];
+    
+    
+    
+    // last set of live points
+    // pLivePts will have nPar parameters in the first nPar columns & loglike value in the last column
+    
+    double pLivePts[nlive][nPar + 1];
+    for( i = 0; i < nPar + 1; i++ )
+    for( j = 0; j < nlive; j++ )
+    pLivePts[j][i] = physLive[0][i * nlive + j];
 }
 
 
@@ -565,9 +519,12 @@ int main(int argc, char *argv[])
   int maxiter = 0;// max no. of iterations, a non-positive value means infinity. MultiNest will terminate if either it 
 		  // has done max no. of iterations or convergence criterion (defined through tol) has been satisfied
 	
-  void *context = 0;// not required by MultiNest, any additional information user wants to pass	
+  void *context = 0;// not required by MultiNest, any additional information user wants to pass
+    
+    int IS = 1;
+    
 	
   // calling MultiNest
 	
-  nested::run(mmodal, ceff, nlive, tol, efr, ndims, nPar, nClsPar, maxModes, updInt, Ztol, root, seed, pWrap, fb, resume, outfile, initMPI,logZero, maxiter, LogLike, dumper, context);
+  nested::run(IS, mmodal, ceff, nlive, tol, efr, ndims, nPar, nClsPar, maxModes, updInt, Ztol, root, seed, pWrap, fb, resume, outfile, initMPI,logZero, maxiter, LogLike, dumper, context);
 }

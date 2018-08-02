@@ -28,12 +28,10 @@ import scipy.optimize as opter
 from scipy.optimize import fsolve
 from scipy.optimize import minimize
 from matplotlib.ticker import ScalarFormatter 
-#import pymultinest
+import pymultinest
 import datetime
 import time
 import threading
-from astropy.stats import LombScargle
-import pylab as py
 # Several functions were taken from:
 # /ghezgroup/code/python/gcwork/polyfit/accel.py,
 # velocity.py and residuals.py, written by JLu.
@@ -44,15 +42,15 @@ home='/u/pi/'
 pi = math.pi
 
 # Mass and Ro from S0-2 - Ghez et al. 2008, Anna Boehle up to 2013
-mass = 3.960e6 #3.93e6
-#masse = 0.6e6 #0.19e6
-dist = 7828.0 #7.84e3
+mass = 4.07e6 #3.93e6
+masse = 0.6e6 #0.19e6
+dist = 7960.0 #7.84e3
 #diste = 0.14e3
 G = 6.6726e-8
 msun = 1.99e33
 GM = G * mass * msun
 mass_g = mass * msun
-#masse_g = masse * msun
+masse_g = masse * msun
 sec_in_yr = 3.1557e7
 cm_in_au = 1.496e13
 cm_in_pc = 3.086e18
@@ -91,7 +89,6 @@ def loadPop(alnDir='13_08_21/',
     s.loadPolyfit(root_tmp + alnDir + poly, accel=1, arcsec=1)
     s.loadPoints(root_tmp + alnDir + points)
 
-
     # Get the most up-to-date young stars from Tuan's sql data base.
     yng = young.youngStarNames()
 
@@ -99,7 +96,6 @@ def loadPop(alnDir='13_08_21/',
     yngstars = []
     names = [star.name for star in s.stars]
 
-    pdb.set_trace()
 
 #    print 'All the stars'
 #    print names
@@ -184,10 +180,10 @@ def loadPop(alnDir='13_08_21/',
             star.axe = star.fitXa.aerr
             star.aye = star.fitYa.aerr
             star.cnt = star.velCnt
-            star.xchi2 = star.fitXa.chi2
-            star.ychi2 = star.fitYa.chi2
-            star.xchi2r = star.fitXa.chi2red
-            star.ychi2r = star.fitYa.chi2red
+	    star.xchi2 = star.fitXa.chi2
+	    star.ychi2 = star.fitYa.chi2
+	    star.xchi2r = star.fitXa.chi2red
+	    star.ychi2r = star.fitYa.chi2red
             star.t0x = star.fitXa.t0
             star.t0y = star.fitYa.t0
         except AttributeError, e:
@@ -228,10 +224,10 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, alnDir = '13_08_21/', c
 
     #Read in values for error in position and velocity of sgr*
     origin_val = asciidata.open('/g/ghez/align/' + alnDir + chainsDir + 'efit_summary.txt')
-    ori_x0e = origin_val[25][0]
-    ori_y0e = origin_val[26][0]
-    ori_vxe = origin_val[27][0]
-    ori_vye = origin_val[28][0]
+    ori_x0e = origin_val[18][0]
+    ori_y0e = origin_val[19][0]
+    ori_vxe = origin_val[20][0]
+    ori_vye = origin_val[21][0]
     t_0 = 2000.0 #hard coded t_0 of sgr*
 
  #   magBins=np.array([9,11,12,13,14,15,16,17,18,19,20,21])
@@ -242,8 +238,6 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, alnDir = '13_08_21/', c
 #        for j in range(len(deltaArr)):
 #            if ((mag[i] > magBins[j]) & (mag[i] <= magBins[j+1])):
 #                delta[i]=deltaArr[j]
-
-#pdb.set_trace()
 
     #Update errors
     xerr = np.sqrt(xerr**2 + ori_x0e**2 + ((year_x - t_0)*ori_vxe)**2)
@@ -257,8 +251,8 @@ def nzErr(xerr, yerr, vxerr, vyerr, year_x, year_y, mag, alnDir = '13_08_21/', c
 def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
               align = 'align/align_d_rms_1000_abs_t', updateErr = True,Rcut = 1.7,
               poly='polyfit_nz/fit', points='points_nz/', polyj='polyfit_nzj/fit',
-              f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',nonRadial=0,
-              starlist='all', magCut=22, nEpochs=14,ak_correct=True):
+              f_test=True, pvalue=4.0, chainsDir = 'efit/chains/',
+              starlist='all', magCut=22, nEpochs=14):
 
     """
     Gets radial acceleration and other info on stars that make mag, cnt, and 2D radius cuts
@@ -294,20 +288,6 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     cnt = s.getArray('cnt')
     mag = s.getArray('mag')
 
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    cur = connection.cursor()
-
-    if (ak_correct == True):
-        for mm in range(len(names)):
-            try:
-                cur.execute('SELECT Ak_sch FROM stars WHERE name=?', [str(names[mm])])
-                for row in cur:
-                    mag[mm] += 2.7 - row[0]
-            except:
-                pdb.set_trace()
 
     #Load Jerk values
     fitRoot = root_tmp + alnDir + polyj
@@ -323,65 +303,27 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     jx0 = _fit[1].tonumpy()
     jvx = _fit[2].tonumpy()
     jax = _fit[3].tonumpy()
-    jjx = _fit[4].tonumpy()
+    jx = _fit[4].tonumpy()
     jx0e = _fit[5].tonumpy()
     jvxe = _fit[6].tonumpy()
     jaxe = _fit[7].tonumpy()
-    jjxe = _fit[8].tonumpy()
+    jxe = _fit[8].tonumpy()
     chi2xj = _fit[9].tonumpy()
 #    jxq = _fit[10].tonumpy()
 
     jy0 = _fit[11].tonumpy()
     jvy = _fit[12].tonumpy()
     jay = _fit[13].tonumpy()
-    jjy = _fit[14].tonumpy()
+    jy = _fit[14].tonumpy()
     jy0e = _fit[15].tonumpy()
     jvye = _fit[16].tonumpy()
     jaye = _fit[17].tonumpy()
-    jjye = _fit[18].tonumpy()
+    jye = _fit[18].tonumpy()
     chi2yj = _fit[19].tonumpy()
 #    jyq = _fit[20].tonumpy()
 
-    
     r = np.sqrt(x0**2 + y0**2)
-    if (nonRadial==0):
-        idx = np.where((cnt > nEpochs) & (r < Rcut))[0]
-    else:
-        in_gcows = np.zeros(len(mag))
-        plate_scale = 0.00995
-        gcows_zero = np.array([1500.0,1500.0])
-        gcows = pyfits.getdata('/u/schappell/Downloads/NIRC2 radial mask/nirc2_gcows_2010_all_mask.fits')
-        gcows_dex = np.where(gcows > 0)
-        np.savetxt('/u/schappell/code/c/gcows_field.dat',np.transpose([gcows_dex[1],gcows_dex[0]]),delimiter=' ')
-        #saves x and y positions, in pixels
-        for ii in range(len(mag)):
-            #pdb.set_trace()
-            try:
-                x_pixels = int(round((-1.0*x0[ii] / plate_scale) + gcows_zero[0]))
-                y_pixels = int(round((y0[ii] / plate_scale) + gcows_zero[1]))
-                in_gcows[ii] = gcows[y_pixels,x_pixels]
-            except:
-                continue
-            if ((x_pixels < 0.0) | (y_pixels < 0.0)):
-                in_gcows[ii] = 0
-        idx = np.where((cnt > nEpochs) & (r < Rcut) & (in_gcows > 0))[0]
-
-#in_gcows = in_gcows[idx]
-#pdb.set_trace()
-
-
-    r = np.hypot(x0, y0)
-    ar = ((ax*x0) + (ay*y0)) / r
-    at = ((ax*y0) - (ay*x0)) / r
-    ate =  (axe*y0/r)**2 + (aye*x0/r)**2
-    ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
-    ate =  np.sqrt(ate)
-    usedex = np.where((ate==ate) & (at==at) & (mag < 16.5))[0]
-    deltaArr, atBins = deltaError(mag[usedex], at[usedex], ate[usedex])
-    #for ii in range(len(names)):
-     #   if (names[ii] == 'S0-17'):
-     #       pdb.set_trace()
-     #       idx = np.append(idx,ii)
+    idx = np.where((cnt > nEpochs) & (mag < magCut) & (r < Rcut))[0]
     x0 = x0[idx]
     y0 = y0[idx]
     x0e = x0e[idx]
@@ -404,19 +346,9 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     chi2yv = chi2yv[idx]
     chi2xa = chi2xa[idx]
     chi2ya = chi2ya[idx]
-    chi2xjr = np.zeros(len(idx))
-    chi2yjr = np.zeros(len(idx))
+    chi2xj = chi2xj[idx]
+    chi2yj = chi2yj[idx]
     names = [names[nn] for nn in idx]
-
-#pdb.set_trace()
-
-    chi2xj_tmp = np.array([])
-    chi2yj_tmp = np.array([])
-    for tname in names:
-        tdex = np.where(jnames == tname)[0]
-        chi2xj_tmp = np.append(chi2xj_tmp,chi2xj[tdex])
-        chi2yj_tmp = np.append(chi2yj_tmp,chi2yj[tdex])
-
 
     #Do F tests in this function, as opposed to making it own function
     #otherwise have to important data points twice
@@ -462,11 +394,11 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     yFprob = np.zeros(len(chi2xa))
     dof = np.zeros(len(chi2xa))
 
-    good = np.where(chi2xj_tmp > 0)[0]
+    good = np.where(chi2xj > 0)[0]
     dof[good] = cnt[good] - 4.0 #dof for jerk
 
-    xFval[good] = ((chi2xa[good] - chi2xj_tmp[good])/1.0)/(chi2xj_tmp[good]/dof[good])
-    yFval[good] = ((chi2ya[good] - chi2yj_tmp[good])/1.0)/(chi2yj_tmp[good]/dof[good])
+    xFval[good] = ((chi2xa[good] - chi2xj[good])/1.0)/(chi2xj[good]/dof[good])
+    yFval[good] = ((chi2ya[good] - chi2yj[good])/1.0)/(chi2yj[good]/dof[good])
     
     xFprob[good] = stats.f.sf(xFval[good], 1, dof[good])
     yFprob[good] = stats.f.sf(yFval[good], 1, dof[good])
@@ -487,46 +419,29 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
             pass_fj[ss] = 0 # Accel fit
 
     for i in range(len(names)):
-        if ((str(names[i]) == 'S0-16') | (str(names[i]) == 'S0-17')):
-            pass_f[i] = 1
-            pass_fj[i] = 1
-            print 'S0-16 or S0-17 updated accel and jerk'
+        if (str(names[i]) == 'S0-16'):
+            pass_f[i] == 1
 
-    # S0-16 and S0-17 have such high inclinations that they are being seen as velocity, force the f test vel/acc to be acc
+    # S0-16 has such a high inclination that it is being seen as a velocity, force the f test vel/acc to be acc
 
     idex = np.where((pass_fj ==1) & (pass_f == 1))[0]
 
-
-    jx = np.zeros(len(x0))
-    jy = np.zeros(len(x0))
-    jxe = np.zeros(len(x0))
-    jye = np.zeros(len(x0))
     for i in idex:
-        try:
-            jdex = np.where(jnames == names[i])
-            #x0[i] = jx0[jdex]
-            #y0[i] = jy0[jdex]
-            x0e[i] = jx0e[jdex]
-            y0e[i] = jy0e[jdex]
-            vx[i] = jvx[jdex]
-            vy[i] = jvy[jdex]
-            vxe[i] = jvxe[jdex]
-            vye[i] = jvye[jdex]
-            ax[i] = jax[jdex]
-            ay[i] = jay[jdex]
-            axe[i] = jaxe[jdex]
-            aye[i] = jaye[jdex]
-            t0x[i] = jt0x[jdex]
-            t0y[i] = jt0y[jdex]
-
-            jx[i] = jjx[jdex]
-            jy[i] = jjy[jdex]
-            jxe[i] = jjxe[jdex]
-            jye[i] = jjye[jdex]
-            chi2xjr[i] = chi2xj[jdex] / (cnt[i] - 4.0)
-            chi2yjr[i] = chi2yj[jdex] / (cnt[i] - 4.0)
-        except:
-            continue
+        jdex = np.where(jnames == names[i])
+        x0[i] = jx0[jdex]
+        y0[i] = jy0[jdex]
+        x0e[i] = jx0e[jdex]
+        y0e[i] = jy0e[jdex]
+        vx[i] = jvx[jdex]
+        vy[i] = jvy[jdex]
+        vxe[i] = jvxe[jdex]
+        vye[i] = jvye[jdex]
+        ax[i] = jax[jdex]
+        ay[i] = jay[jdex]
+        axe[i] = jaxe[jdex]
+        aye[i] = jaye[jdex]
+        t0x[i] = jt0x[jdex]
+        t0y[i] = jt0y[jdex]
 
     r = np.hypot(x0, y0)
     ar = ((ax*x0) + (ay*y0)) / r
@@ -538,460 +453,36 @@ def accelInfo(alnDir='14_06_18/', root_tmp='/g/ghez/align/',
     ate += (y0*x0e*ar/r**2)**2 + (x0*y0e*ar/r**2)**2
     ate =  np.sqrt(ate)
 
-#pdb.set_trace()
-
     if updateErr:
         x0e,y0e,vxe,vye = nzErr(x0e, y0e, vxe, vye, t0x, t0y, mag, alnDir=alnDir, chainsDir = chainsDir)
 
-#if updateErr:
-#       atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17.1])
-#       deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
-#       delta = mag*0.0
-#       for i in range(len(mag)):
-#           for j in range(len(atBins)-1):
-#               if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
-#                   delta[i] = deltaArr[j]
+    if updateErr:
+        atBins=np.array([9, 12.73, 13.78, 14.56, 15.18, 15.39, 15.595, 15.88, 17.1])
+        deltaArr=np.array([1.5302, 2.0025, 2.9809, 3.8496, 4.6642, 4.6273, 5.0453, 5.2388])*1e-5
+        delta = mag*0.0
+        for i in range(len(mag)):
+            for j in range(len(atBins)-1):
+                if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
+                    delta[i] = deltaArr[j]
 
-#       ate = np.sqrt(ate**2 + delta**2)
-#       are = np.sqrt(are**2 + delta**2)
+        ate = np.sqrt(ate**2 + delta**2)
+        are = np.sqrt(are**2 + delta**2)
 
-
-    delta_add = np.zeros(len(mag))
-    for i in range(len(mag)):
-        for j in range(len(atBins)-1):
-            if ((mag[i] > atBins[j]) & (mag[i] <= atBins[j+1])):
-                delta_add[i] = deltaArr[j]
-
-
-
-    py.clf()
-    mid_point = np.array([(atBins[ii]+atBins[ii+1])/2.0 for ii in range(len(deltaArr))])
-    py.plot(mid_point,deltaArr*1e6,'o')
-    py.xlabel("Magnitude (K')")
-    py.ylabel('Additive Error ($\mu$as/yr$^2$)')
-    py.savefig('/u/schappell/plots/additive_error_magnitude.png')
-    py.clf()
-    py.figure()
-    py.axes([0.08,0.1,0.38,0.82])
-    py.hist(at/ate,bins=200)
-    py.xlim([-15,15])
-#py.ylim([0,85])
-    py.xlabel('$\sigma_T$')
-    py.title('Before')
-
-    ate = np.sqrt(ate**2 + delta_add**2)
-    are = np.sqrt(are**2 + delta_add**2)
-
-    py.axes([0.56,0.1,0.38,0.82])
-    py.hist(at/ate,bins=200)
-    py.xlim([-15,15])
-#py.ylim([0,85])
-    py.xlabel('$\sigma_T$')
-    py.title('After')
-    py.savefig('/u/schappell/plots/before_after_error_at.png')
-    py.clf()
-
-    dbfile = '/g/ghez/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    connection = sqlite.connect(dbfile)
-        # Create a cursor object
-    cur = connection.cursor()
-    oldProb = np.zeros(len(names))
-        #Determine a star's prob of being old
-        
-    connection = sqlite.connect(dbfile)
-        # Create a cursor object
-    cur = connection.cursor()
-        
-    for i in range(len(names)):
-        tmpName = str(names[i])
-        try:
-            cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
-            for row in cur:
-                oldProb[i] = float(row[1])
-        except:
-            continue
-    
-    for i in range(len(names)):
-        tmpName = str(names[i])
-        try:
-            cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
-            for row in cur:
-                if (row[1] == 'F') | (row[2] == 'T'):
-                    oldProb[i] = 1.0
-                elif ((row[1] == 'T') | (row[2] == 'F')):
-                    oldProb[i] = 0.0
-        except:
-            continue
-
-        if ((tmpName == 'S0-38') | (tmpName == 'S0-49') | (tmpName == 'S0-35') | (tmpName == 'S1-32')):
-            oldProb[i] = 1.0
-        if (tmpName == 'S0-61'):
-            oldProb[i] = 0.0
-
-#make significant accel, 3 sigma upper limits, and rest selection
-    sortdex = np.argsort(r)
-    sigdex = np.array([])
-    updex = np.array([])
-    restdex = np.array([])
-
-#pdb.set_trace()
-
-
-    if (nonRadial>0):
-        py.clf()
-        py.plot((gcows_dex[1]-1500.0)*plate_scale,(gcows_dex[0]-1500.0)*plate_scale,'.',color='k',label='GCOWS footprint')
-        py.plot(-1.0*x0,y0,'.',color='b',label=r'p$_{Old} = 0$')
-        oldDex = np.where(oldProb > 0.0)[0]
-        py.plot(-1.0*x0[oldDex],y0[oldDex],'.',color='r',label=r'p$_{Old} > 0$')
-        py.legend()
-        py.xlabel('RA (arcsec)')
-        py.ylabel('Dec (arcsec)')
-        py.savefig('/u/schappell/plots/xy_gcows_pold_footprint.png')
-
-
-    agdex = np.where((r > 1.0) & (oldProb > 0.0))[0]
-    py.clf()
-    for aj in agdex:
-        if (chi2yjr[aj] == 0.0):
-            tmp_chir = abs(chi2xa[aj] + chi2ya[aj])/(2.0*(cnt[aj] - 3.0))
-            accel_plot=py.errorbar(tmp_chir, ar[aj]*1e3,yerr=are[aj]*1e3,fmt='.',color='b')
-    for aj in agdex:
-        if (chi2yjr[aj] != 0.0):
-            jerk_plot=py.errorbar(abs(chi2yjr[aj]+chi2xjr[aj])/2.0,ar[aj]*1e3,yerr=are[aj]*1e3,fmt='.',color='r')
-    py.xscale('log')
-#py.yscale('log')
-    py.legend([jerk_plot,accel_plot],['Jerk Fit','Accel Fit'])
-    py.ylabel(r'a$_r$ (mas/yr$^2$)')
-    py.xlabel(r'X$^2_{red}$')
-    py.savefig('/u/schappell/plots/ar_chi2red.png')
-    py.clf()
-    for aj in agdex:
-        if (chi2yjr[aj] == 0.0):
-            tmp_chir = abs(chi2xa[aj] + chi2ya[aj])/(2.0*(cnt[aj] - 3.0))
-            accel_plot=py.errorbar(tmp_chir, at[aj]*1e3,yerr=ate[aj]*1e3,fmt='.',color='b')
-    for aj in agdex:
-        if (chi2yjr[aj] != 0.0):
-            jerk_plot=py.errorbar(abs(chi2yjr[aj]+chi2xjr[aj])/2.0,at[aj]*1e3,yerr=ate[aj]*1e3,fmt='.',color='r')
-    py.xscale('log')
-#   py.yscale('log')
-    py.legend([jerk_plot,accel_plot],['Jerk Fit','Accel Fit'])
-    py.ylabel(r'a$_t$ (mas/yr$^2$)')
-    py.xlabel(r'X$^2_{red}$')
-    py.savefig('/u/schappell/plots/at_chi2red.png')
-    py.clf()
-    py.plot(ar[agdex]/are[agdex],at[agdex]/ate[agdex],'.')
-    py.xlabel(r'a$_r$/$\sigma_{a,r}$')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.savefig('/u/schappell/plots/sig_ar_at_all.png')
-    py.clf()
-    py.plot(ar[agdex]/are[agdex],at[agdex]/ate[agdex],'.')
-    py.xlabel(r'a$_r$/$\sigma_{a,r}$')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlim([-20,20])
-    py.ylim([-20,20])
-    py.savefig('/u/schappell/plots/sig_ar_at_all_ZOOM.png')
-    py.clf()
-    py.plot(r[agdex],ar[agdex]/are[agdex],'.',label='Radial')
-    py.ylabel(r'a$_r$/$\sigma_{a,r}$')
-    py.xlabel(r'R$_{2D}$ (arcsec)')
-    py.savefig('/u/schappell/plots/sig_ar_R2d.png')
-    py.clf()
-    py.plot(cnt[agdex],ar[agdex]/are[agdex],'.',label='Radial')
-    py.ylabel(r'a$_r$/$\sigma_{a,r}$')
-    py.xlabel(r'Number Epochs')
-    py.savefig('/u/schappell/plots/sig_ar_epochs.png')
-    py.clf()
-    py.plot(mag[agdex],ar[agdex]/are[agdex],'.',label='Radial')
-    py.ylabel(r'a$_r$/$\sigma_{a,r}$')
-    py.xlabel("K' (mag)")
-    py.savefig('/u/schappell/plots/sig_ar_mag.png')
-    py.clf()
-    py.plot(r[agdex],at[agdex]/ate[agdex],'.',label='Radial')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlabel(r'R$_{2D}$ (arcsec)')
-    py.savefig('/u/schappell/plots/sig_at_R2d.png')
-    py.clf()
-    py.plot(cnt[agdex],at[agdex]/ate[agdex],'.',label='Radial')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlabel(r'Number Epochs')
-    py.savefig('/u/schappell/plots/sig_at_epochs.png')
-    py.clf()
-    py.plot(mag[agdex],at[agdex]/ate[agdex],'.',label='Radial')
-    py.ylabel(r'a$_t$/$\sigma_{a,t}$')
-    py.xlabel("K' (mag)")
-    py.savefig('/u/schappell/plots/sig_at_mag.png')
-    py.clf()
-    py.plot(cnt[agdex],mag[agdex],'.')
-    py.ylabel("K' (mag)")
-    py.xlabel('Number Epochs')
-    py.savefig('/u/schappell/plots/mag_epocs.png')
-    py.clf()
-    py.plot(r[agdex],cnt[agdex],'.',label="K' < 15.5")
-    tmpdex = np.where(mag[agdex] > 15.5)[0]
-    py.plot(r[agdex[tmpdex]],cnt[agdex[tmpdex]],'.',color='r',label="K' > 15.5")
-    py.xlabel(r'R$_{2D}$ (arcsec)')
-    py.ylabel('Number Epochs')
-    py.savefig('/u/schappell/plots/epocs_R2d_showMag.png')
-    py.clf()
-    sort_epochs = np.sort(cnt[agdex])
-    sum_epochs = np.cumsum((sort_epochs*0.0+1.0))/float(len(sort_epochs))
-    py.plot(sort_epochs,sum_epochs)
-    py.xlabel('Number Epochs')
-    py.ylabel('CDF')
-    py.savefig('/u/schappell/plots/CDF_epochs.png')
-    py.clf()
-
-
-#plR = np.arange(0.0,5.01,0.01)
-#plA = (GM/plR**2)*sec_in_yr**2*1e-15*1e3/as_to_km**3
-#py.plot(plR,plA,'r')
-    for ss in sortdex:
-        if (((ar[ss]/are[ss]) <= -3.0) & (np.abs(at[ss]/ate[ss]) <= 3.0)):
-            sigdex = np.append(sigdex,ss)
-            py.errorbar(r[ss],ar[ss]*1e3,yerr=are[ss]*1e3,fmt='b.')
-        elif ((ar[ss]+3.0*are[ss]) < 0.0):
-            #pdb.set_trace()
-            updex = np.append(updex,int(ss))
-            py.plot(r[ss],(ar[ss]-3.0*are[ss])*1e3,'k_')
-            py.arrow(r[ss],(ar[ss]-3.0*are[ss])*1e3,0,5,head_width=0.15,head_length=1,fc='k',ec='k',linewidth=0.8)
-
-    py.xlabel('R (arcsec)')
-    py.ylabel(r'a$_r$ (mas/yr$^2$)')
-#py.ylim([-10,100])
-    py.savefig('/u/schappell/plots/sig_upperLim_accel_sample.png')
-
-#pdb.set_trace()
-
-
-    out = open('/u/schappell/tables/sigstars_table.tex','w')
-#out.write('\\documentclass{aastex} \n')
-# out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lcccccccccccccc} \n')
-#   out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\setlength{\\tabcolsep}{0.8mm} \n')
-    out.write('\\tablewidth{0pt} \n')
-#   out.write('\\begin{document} \n')
-#out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec, p$_{old}$ > 0, and K' < 15.5 mag}\n")
-    out.write("\\tablecaption{Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)}\n")
-    out.write('\\tablehead{ \n')
-    out.write('  \\colhead{Star} & \n')
-    out.write("  \\colhead{K'} & \n")
-    out.write('  \\colhead{X} & \n')
-    out.write('  \\colhead{Y} & \n')
-    out.write('  \\colhead{R$_{2D}$} & \n')
-    out.write('  \\colhead{n}\\tablenotemark{a} & \n')
-    out.write('  \\colhead{$v_x$} & \n')
-    out.write('  \\colhead{$v_y$} & \n')
-    out.write('  \\colhead{$a_r$} & \n')
-    out.write('  \\colhead{$a_t$} & \n')
-    out.write('  \\colhead{$a_r / \sigma_r$} & \n')
-    out.write('  \\colhead{$a_t / \sigma_t$} & \n')
-    out.write('  \\colhead{$j_x$} & \n')
-    out.write('  \\colhead{$j_y$} & \n')
-    out.write('  \\colhead{$p_{old}$}\\tablenotemark{b} & \\\\\n')
-    out.write('%\n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{3}{c}{(arcsec)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr)} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr$^2$)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{($\mu$as/yr$^3$)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('} \n')
-    out.write('\\startdata \n')
-#out.write('\\multicolumn{13}{}{} & Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)')
-    for ii in sigdex:
-        ii = int(ii)
-        fmt = '%15s  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.1f  %1s  %6.1f  %1s  '
-        if (jx[ii] != 0):
-            fmt += '%6.1f  %5s  %6.1f  %1s  %6.1f  %5s  %6.1f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', jx[ii]*1e6, '$\pm$', jxe[ii]*1e6, '&', jy[ii]*1e6, '$\pm$', jye[ii]*1e6, '&', oldProb[ii], '\\\\'))
-        else:
-            fmt += '%5s  %1s  %5s  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' - ', '&', ' - ', '&', oldProb[ii], '\\\\'))
-    out.write('\\\\\n')
-    out.write('\\enddata \n')
-    out.write('\label{tab:sig_data} \n')
-    out.write('\\tablenotetext{a}{Number of epochs.} \n')
-    out.write('\\tablenotetext{b}{Probability of being late-type, reported in \citet{do13l}.} \n')
-    out.write('\\end{deluxetable} \n')
-#out.write('\\end{singlespace} \n')
-# out.write('\\end{document} \n')
-    out.write('\n')
-    out.write('\n')
-    out.write('\n')
-    out.write('\n')
-
-
-#out = open('/u/schappell/tables/limitstars_table.tex','w')
-    #out.write('\\documentclass{aastex} \n')
-    # out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lcccccccccccc} \n')
-    #   out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\setlength{\\tabcolsep}{0.8mm} \n')
-    out.write('\\tablewidth{0pt} \n')
-    #   out.write('\\begin{document} \n')
-    #out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec, p$_{old}$ > 0, and K' < 15.5 mag}\n")
-    out.write("\\tablecaption{Stars with radial acceleration upper limits}\n")
-    out.write('\\tablehead{ \n')
-    out.write('  \\colhead{Star} & \n')
-    out.write("  \\colhead{K'} & \n")
-    out.write('  \\colhead{X} & \n')
-    out.write('  \\colhead{Y} & \n')
-    out.write('  \\colhead{R$_{2D}$} & \n')
-    out.write('  \\colhead{n}\\tablenotemark{a} & \n')
-    out.write('  \\colhead{$v_x$} & \n')
-    out.write('  \\colhead{$v_y$} & \n')
-    #out.write('  \\colhead{$a_r$} & \n')
-    out.write('  \\colhead{$a_t$} & \n')
-    #out.write('  \\colhead{$\sigma_r$} & \n')
-    #out.write('  \\colhead{$\sigma_t$} & \n')
-    out.write('  \\colhead{$a_{r,lim}$\\tablenotemark{b}} & \n')
-    out.write('  \\colhead{$j_x$} & \n')
-    out.write('  \\colhead{$j_y$} & \n')
-    #out.write('  \\colhead{$z_{lim}$\\tablenotemark{a}} & \n')
-    out.write('  \\colhead{$p_{old}$\\tablenotemark{c}} & \\\\\n')
-    out.write('%\n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{3}{c}{(arcsec)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr)} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr$^2$)} & \n')
-    out.write('  \\multicolumn{2}{c}{($\mu$as/yr$^3$)} & \n')
-    #out.write('  \\colhead{(pc)} & \n')
-    out.write('  \\colhead{} & \n')
-    #out.write('  \\colhead{} & \n')
-    out.write('} \n')
-    out.write('\\startdata \n')
-    #out.write('\\multicolumn{13}{}{} & Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)')
-    out.write('\\\\\n')
-    out.write('\\hline \n')
-    for ii in updex:
-        ii = int(ii)
-        fmt = '%15s  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %1s  '
-        if (jx[ii] != 0):
-            fmt += '%6.1f  %5s  %6.1f  %1s  %6.1f  %5s  %6.1f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', (ar[ii]-3.0*are[ii])*1e3, '&', jx[ii]*1e6, '$\pm$', jxe[ii]*1e6, '&', jy[ii]*1e6, '$\pm$', jye[ii]*1e6, '&', oldProb[ii], '\\\\'))
-        else:
-            fmt += '%5s  %1s  %5s  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', (ar[ii]-3.0*are[ii])*1e3, '&', ' - ', '&', ' - ', '&', oldProb[ii], '\\\\'))
-    #else:
-    #fmt += '%2s  %4s\n'
-    #out.write(fmt % (names[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e6, '$\pm$', are[ii]*1e6, '&', at[ii]*1e6, '$\pm$', ate[ii]*1e6, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' ', '\\\\'))
-    out.write('\\\\\n')
-    out.write('\\enddata \n')
-    out.write('\label{tab:lim_data} \n')
-    out.write('\\tablenotetext{a}{Number of epochs.} \n')
-    out.write('\\tablenotetext{b}{Three $\sigma$ lower limit.} \n')
-    out.write('\\tablenotetext{c}{Probability of being late-type, reported in \citet{do13l}.} \n')
-    out.write('\\end{deluxetable} \n')
-    #out.write('\\end{singlespace} \n')
-# out.write('\\end{document} \n')
-    out.close()
-
-
-
-
-    out = open('/u/schappell/tables/allstars_table.tex','w')
-#out.write('\\documentclass{aastex} \n')
-# out.write('\\begin{singlespace} \n')
-    out.write('\\begin{deluxetable}{lcccccccccccc} \n')
-#   out.write('\\rotate \n')
-    out.write('\\tabletypesize{\\scriptsize} \n')
-    out.write('\\setlength{\\tabcolsep}{0.8mm} \n')
-    out.write('\\tablewidth{0pt} \n')
-#   out.write('\\begin{document} \n')
-    out.write("\\tablecaption{Stars in sample: R$_{2D}$ < 5 arcsec}\n")
-#out.write("\\tablecaption{Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)")
-    out.write('\\tablehead{ \n')
-    out.write('  \\colhead{Star} & \n')
-    out.write("  \\colhead{K'} & \n")
-    out.write('  \\colhead{X} & \n')
-    out.write('  \\colhead{Y} & \n')
-    out.write('  \\colhead{R$_{2D}$} & \n')
-    out.write('  \\colhead{n}\\tablenotemark{a} & \n')
-    out.write('  \\colhead{$v_x$} & \n')
-    out.write('  \\colhead{$v_y$} & \n')
-    out.write('  \\colhead{$a_r$} & \n')
-    out.write('  \\colhead{$a_t$} & \n')
-    out.write('  \\colhead{$a_r / \sigma_r$} & \n')
-    out.write('  \\colhead{$a_t / \sigma_t$} & \n')
-    out.write('  \\colhead{$j_x$} & \n')
-    out.write('  \\colhead{$j_y$} & \n')
-    out.write('  \\colhead{$p_{old}$}\\tablenotemark{b} & \\\\\n')
-    out.write('%\n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{3}{c}{(arcsec)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr)} & \n')
-    out.write('  \\multicolumn{2}{c}{(mas/yr$^2$)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('  \\multicolumn{2}{c}{($\mu$as/yr$^3$)} & \n')
-    out.write('  \\colhead{} & \n')
-    out.write('} \n')
-    out.write('\\startdata \n')
-#out.write('\\multicolumn{13}{}{} & Stars with significant radial accelerations ($\sigma_R \leq$ 3 and $ | \sigma_T | \leq$ 3)')
-    out.write('\\\\\n')
-    out.write('\\hline \n')
-    for ii in sortdex:
-        ii = int(ii)
-        fmt = '%15s  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %5.1f  %1s  %2d  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.1f  %1s  %6.1f  %1s  '
-        if (jx[ii] != 0):
-            fmt += '%6.1f  %5s  %6.1f  %1s  %6.1f  %5s  %6.1f  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', jx[ii]*1e6, '$\pm$', jxe[ii]*1e6, '&', jy[ii]*1e6, '$\pm$', jye[ii]*1e6, '&', oldProb[ii], '\\\\'))
-        else:
-            fmt += '%5s  %1s  %5s  %1s  %6.2f  %4s\n'
-            out.write(fmt % (names[ii], '&', mag[ii], '&', x0[ii], '&', y0[ii], '&', r[ii], '&', cnt[ii], '&', vx[ii]*1e3, '$\pm$', vxe[ii]*1e3, '&', vy[ii]*1e3, '$\pm$', vye[ii]*1e3, '&', ar[ii]*1e3, '$\pm$', are[ii]*1e3, '&', at[ii]*1e3, '$\pm$', ate[ii]*1e3, '&', ar[ii]/are[ii], '&', at[ii]/ate[ii], '&', ' - ', '&', ' - ', '&', oldProb[ii], '\\\\'))
-    out.write('\\\\\n')
-    out.write('\\enddata \n')
-    out.write('\label{tab:all_data} \n')
-    out.write('\\tablenotetext{a}{Number of epochs.} \n')
-    out.write('\\tablenotetext{b}{Probability of being late-type, reported in \citet{do13l}.} \n')
-    out.write('\\end{deluxetable} \n')
-#out.write('\\end{singlespace} \n')
-# out.write('\\end{document} \n')
-    out.close()
-
-
-
-
-#pdb.set_trace()
-    idx = np.where((oldProb > 0.0) & (mag < magCut))[0]
-    names = [names[nn] for nn in idx]
 
     #Calculating z0 aand a_z and their errors
-    x0_cm = x0[idx] * cm_in_au * dist
-    y0_cm = y0[idx] * cm_in_au * dist
-    x0e_cm = x0e[idx] * cm_in_au * dist
-    y0e_cm = y0e[idx] * cm_in_au * dist
-    r_cm = r[idx] * dist * cm_in_au
+    x0_cm = x0 * cm_in_au * dist
+    y0_cm = y0 * cm_in_au * dist
+    x0e_cm = x0e * cm_in_au * dist
+    y0e_cm = y0e * cm_in_au * dist
+    r_cm = r * dist * cm_in_au
     re_cm = np.sqrt((x0_cm*x0e_cm/r_cm)**2 + (y0_cm*y0e_cm/r_cm)**2)
-    ar_cmss = ar[idx] * asy_to_kms * 1e5 / sec_in_yr
-    are_cmss = are[idx] * asy_to_kms * 1e5 / sec_in_yr
+    ar_cmss = ar * asy_to_kms * 1e5 / sec_in_yr
+    are_cmss = are * asy_to_kms * 1e5 / sec_in_yr
 #    z0_cm = np.sqrt(abs(((GM * r_cm / ar_cmss)**2)**(1.0/3.0) - r_cm**2)) #abs value (no sign)
 #    r3d_cm = np.sqrt(x0_cm**2 + y0_cm**2 + z0_cm**2)
 #    r3de_cm = np.sqrt(((x0_cm*x0e_cm)**2 + (y0_cm*y0e_cm)**2 + (z0_cm*z0e_cm)**2)/r3d_cm**2)
 
-#pdb.set_trace()
-
-    py.clf()
-    bins = np.arange(10.0,16.0,step=0.25)
-    py.hist(mag[idx],bins=bins,weights=oldProb[idx],histtype='step')
-    py.xlabel("K' mag")
-    py.ylabel('Number of Stars')
-    py.yscale('log')
-    py.savefig('/u/schappell/plots/KLF_gcows_sample.png')
-
-    return names, r_cm, ar_cmss, are_cmss, mag[idx], oldProb[idx]
+    return names, r_cm, ar_cmss, are_cmss
 
 
 
@@ -3685,16 +3176,16 @@ def gamma_broken(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,ali
 
 def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='align/align_d_rms_1000_abs_t',
                 poly='polyfit_nz/fit',points='points_nz/',starlist='all',chainsDir='efit/chains/',
-                Rcut=1.7,nEpochs=14.,magCut=15.5,grange=[-5.0,1.9],maxBreak=5.0,alrange=[0.0,10.0],
-                maxDelta=10.0,maxZ=10.0,globalt0=2006.0,maxR=2.0,flag='brokenPower',polyj='polyfit_nzj/fit',
+                Rcut=1.7,nEpochs=14.,magCut=15.5,grange=[-5.0,1.9],maxBreak=5.0,alrange=[-10.0,10.0],
+                maxDelta=10.0,maxZ=1.0e20,globalt0=2006.0,maxR=2.0,flag='brokenPower',polyj='polyfit_nzj/fit',
                 pvalue=4.0):
     #Uses PyMultiNest to determine gamma
     #maxBreak in pc
-    #maxZ in pc
+    #maxZ in arcsec
 
 
     maxR *= dist * cm_in_au
-    maxZ *= cm_in_pc
+    maxZ *= dist * cm_in_au
 
     #Make cuts in the sample of stars used, in mag, #Epochs, and 2D radius
     #all in cgs units
@@ -3778,7 +3269,6 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
         brmod = cube[3] * cm_in_pc
         #z0mod = cube[0] * 1.0e-3 * cm_in_pc
         print gmod,almod,demod,brmod
-        pdb.set_trace()
 
 
         def density_norm(Rprime,zprime,gmod=gmod,almod=almod,demod=demod,brmod=brmod):
@@ -3787,37 +3277,15 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
 
         norm = integrate.nquad(density_norm,[[0.0,maxR],[0.0,maxZ]])
         norm = norm[0]
-
-        #def density_SumR(Rtries,maxZ=maxZ):
-        #    Rtmp=float(0.0)#placeholder
-
-        #    def density_SumZ(ztries,Rtmp=Rtmp,maxZ=maxZ):
-        #        density_sumz = np.array([])
-        #        for ztmp in ztries:
-        #            tmpsumz = density_norm(Rtmp,ztmp)
-        #            density_sumz = np.append(density_sumz,tmpsumz)
-        #        return density_sumz
-
-        #    density_sum = np.array([])
-        #    for Rtmp in Rtries:
-        #        tmpsum = integrate.quadrature(density_SumZ,0.0,maxZ)
-        #        density_sum = np.append(density_sum,tmpsum[0])
-        #    return density_sum
-
-        #norm = integrate.quadrature(density_SumR,0.0,maxR)
-        #norm = norm[0]
-
         if (norm <= 0.0):
             maxZ = 5.0 * brmod * (abs(gmod/almod))**(1.0/demod)
             norm = integrate.nquad(density_norm,[[0.0,maxR],[0.0,maxZ]])
             norm = norm[0]
-            print 'norm was 0 or less originally'
 
             if (norm <= 0.0):
                 print 'Density normalization is still zero'
                 pdb.set_trace()
 
-        #pdb.set_trace()
         total_lnL = 0.0
         for i in range(len(pdex)):
             p = pdex[i]
@@ -3826,7 +3294,7 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
             total_lnL += tmplnL*oldProb[p]
 
         #print 'End loglike func'
-        pdb.set_trace()
+        #pdb.set_trace()
         return total_lnL
 
 
@@ -3837,7 +3305,6 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
        
         def like_toSum(z0mod,pdex=pdex,gmod=gmod,almod=almod,demod=demod,brmod=brmod,norm=norm):
 
-            #pdb.set_trace()
             if (ar[pdex] < 0.0):
                 amod = -1.0 * GM * r2d[pdex] / (np.sqrt(r2d[pdex]**2 +z0mod**2))**3
                 like_pos = np.exp(-1.0*(ar[pdex] - amod)**2/(2.0*are[pdex]**2))
@@ -3852,27 +3319,23 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
                 norm_pos = maxz_star[pdex]
 
             like_den = ((r2d[pdex]**2+z0mod**2)**(gmod/-2.0)*
-                        (1.0+(np.sqrt(r2d[pdex]**2+z0mod**2)/brmod)**demod)**((gmod-almod)/demod))
+                        (1.0+(np.sqrt(r2d[pdex]**2+z0mod**2)/brmod)**demod)**((gmod-almod)/demod) / norm)
 
 
-            like_return = like_pos*like_den/ (norm_pos * norm)
-
-            if ((like_return==0.0) | (like_return != like_return)):
-                like_return = 1e-323
-            #for ii in range(len(like_return)):
-            #    if ((like_return[ii] == 0.0) | (like_return[ii] != like_return[ii])):
-            #        like_return[ii] = 1e-323
-            #    if (like_return[ii] == float('Inf')):
-            #        print 'Got Inf value in summation'
-            #        pdb.set_trace()
+            like_return = like_pos*like_den/ norm_pos
+            for ii in range(len(like_return)):
+                if ((like_return[ii] == 0.0) | (like_return[ii] != like_return[ii])):
+                    like_return[ii] = 1e-323
+                if (like_return[ii] == float('Inf')):
+                    print 'Got Inf value in summation'
+                    pdb.set_trace()
 
                 #if (like_return[ii] < 0.0):
-            #pdb.set_trace()
+                 #   pdb.set_trace()
             return like_return
 
 
-        #starlike = integrate.quadrature(like_toSum,0.0,maxZ,maxiter=40)
-        starlike = integrate.quad(like_toSum,0.0,maxZ)
+        starlike = integrate.quadrature(like_toSum,0.0,maxZ,maxiter=40)
         starlike = starlike[0]
 
         #pdb.set_trace()
@@ -3883,7 +3346,7 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
             print 'Got Inf value in star likelihood'
             pdb.set_trace()
 
-        pdb.set_trace()
+        #pdb.set_trace()
         return math.log(starlike)
 
     n_params = 4 #len(pdex)+4
@@ -3898,1097 +3361,87 @@ def gamma_Accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,alig
 
 
 def gamma_C_accel(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='align/align_d_rms_1000_abs_t',
-                  poly='polyfit_nz/fit',points='points_nz/',starlist='all',chainsDir='efit/chains/',innerCut=5.0,
-                  Rcut=5.0,nEpochs=0.0,magCut=15.5,globalt0=2006.0,polyj='polyfit_nzj/fit',pvalue=4.0,outerCut=15.0,
-                  mnAlpha=6.0,mnDelta=4.0,mnBreak=0.5,max_r=5.0,schodel=True,maserDate='13jullgs1',situation=3,
-                  label='',nonRadial=1,ak_correct=True,magCutMaser=17.75,single=False,testing=False):
-
-    #situation = 1, alpha, delta, and r_break free, stars in maser mosaic not included
-               # 2, only gamma free, stars in maser mosaic not included
-               # 3, alpha, delta, and r_break free, stars in maser mosaic included
-               # 4, only gamma free, stars in maser mosaic included
-
-    if (testing ==False):
-        if ((situation != 1) & (situation != 2) & (situation != 3) & (situation != 4)):
-            sys.exit("Did not pick available situation, try 1, 2, 3, or 4")
-            
-        if (schodel==True):
-            ak_correct=True
-        else:
-            ak_correct=False #if using schodel's data, which is ext corrected, have to correct our data
-        #otherwise, using stars from maser field, don't ext correct anything
-
+                  poly='polyfit_nz/fit',points='points_nz/',starlist='all',chainsDir='efit/chains/',
+                  Rcut=1.7,nEpochs=14.,magCut=15.5,grange=[-5.0,1.9],maxBreak=5.0,alrange=[-10.0,10.0],
+                  maxDelta=10.0,maxZ=1.0e20,globalt0=2006.0,maxR=2.0,flag='brokenPower',polyj='polyfit_nzj/fit',
+                  pvalue=4.0):
     #Uses MultiNest in c to determine gamma
     #maxBreak in pc
     #maxZ in arcsec
 
 
-    #maxR *= dist * cm_in_au
-    #maxZ *= dist * cm_in_au
-    #pdb.set_trace()
+    maxR *= dist * cm_in_au
+    maxZ *= dist * cm_in_au
 
     #Make cuts in the sample of stars used, in mag, #Epochs, and 2D radius
     #all in cgs units
-        names, r2d, ar, are, mag_gc, oldProb = accelInfo(alnDir=alnDir,root_tmp=root_tmp,updateErr=updateErr,align=align,poly=poly,
-                                                         Rcut=Rcut,points=points,polyj=polyj,f_test=True,pvalue=pvalue,ak_correct=ak_correct,
-                                                         chainsDir=chainsDir,starlist='all',magCut=magCut,nEpochs=nEpochs,nonRadial=nonRadial)
+    names, r2d, ar, are = accelInfo(alnDir=alnDir,root_tmp=root_tmp,updateErr=updateErr,align=align,poly=poly,
+                                    Rcut=Rcut,points=points,polyj=polyj,f_test=True,pvalue=pvalue,
+                                    chainsDir=chainsDir,starlist='all',magCut=magCut,nEpochs=nEpochs)
 
     #min_accel = -1.0*GM / r2d**2
     #max_accel = -1.0*GM*r2d / (np.sqrt(r2d**2 + maxZ**2))**3
     #maxr = np.sqrt(maxR**2 + maxZ**2)
     #maxz_star = np.sqrt(maxr**2 - r2d**2)
 
-#dbfile = '/g/ghez/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-    #       connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    #   cur = connection.cursor()
-    #   oldProb = np.zeros(len(names))
-    #Determine a star's prob of being old
-
-#   connection = sqlite.connect(dbfile)
-    # Create a cursor object
-    #       cur = connection.cursor()
-
-#   for i in range(len(names)):
-#           tmpName = str(names[i])
-#           try:
-#               cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
-#               for row in cur:
-#                   oldProb[i] = float(row[1])
-#           except:
-#               continue
-#           if ((tmpName == 'S0-38') | (tmpName == 'S0-49') | (tmpName == 'S0-35') | (tmpName == 'S1-32')):
-#               oldProb[i] = 1.0
-#               if (tmpName == 'S0-61'):
-#                   oldProb[i] = 0.0
-
-#        for i in range(len(names)):
-#           tmpName = str(names[i])
-#           try:
-#               cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
-#               for row in cur:
-#                   if (row[1] == 'F') | (row[2] == 'T'):
-#                       oldProb[i] = 1.0
-#                   elif ((row[1] == 'T') | (row[2] == 'F')):
-#                       oldProb[i] = 0.0
-                    
-                    #           except:
-                    #continue
-
-# if (updateErr == True):
-#           origin_val = asciidata.open('/g/ghez/align/' + alnDir + chainsDir + 'efit_summary.txt')
-#           ori_x0e = origin_val[18][0]
-#           ori_y0e = origin_val[19][0]
-#           ori_vxe = origin_val[20][0]
-#           ori_vye = origin_val[21][0]
-#           t_0 = 2000.0 #hard coded t_0 of sgr*
-
-    #Index of stars used for multinest
-        pdex = np.where(oldProb > 0.0)[0]
-    #pdex = np.where(oldProb == 1.0)[0]
-        num_stars = len(pdex)
-        tmprint = 0
-        print 'Stars used:'
-        for p in pdex:
-            print tmprint+5,names[p],oldProb[p]
-            tmprint += 1
-
-
-    #Save info to file for c to read
-        savenames = [names[pp] for pp in pdex]
-        r2d = r2d[pdex]
-        ar = ar[pdex]
-        are = are[pdex]
-        oldProb = oldProb[pdex]
-        np.savetxt('/u/schappell/code/c/stars_mn'+label+'.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
-
-    #Rcut *= dist / au_in_pc #Rcut now in pc
-    #pdb.set_trace()
-
-    mnRoot = '/u/schappell/pmnOld/data'+label
-    if (single==False):
-        if ((situation == 2) | (situation == 4)):
-            mnRoot += '_fixed_a'+str(mnAlpha)+'_d'+str(mnDelta)+'_br'+str(mnBreak)+'pc'
-        else:
-            mnRoot += '_free'
-        if (situation > 2):
-            mnRoot += '_maser_cuts_'+str(innerCut)+'_'+str(outerCut)+'arcsec'
-        else:
-            mnRoot += '_cut_'+str(Rcut)+'arcsec'
-    else:
-        mnRoot += '_SPL_cut_'+str(Rcut)+'arcsec'
-
-    mnRoot += '_'
-
-    Rcut *= dist / au_in_pc
-    if ((situation > 2) & (single==False)):
-        mag_sch = maserStars(maserDate=maserDate,innerCut=innerCut,outerCut=outerCut,magCut=magCutMaser,schodel=schodel,label=label)
-        outerCut *= dist / au_in_pc
-        innerCut *= dist / au_in_pc
-
-        py.clf()
-        bins = np.arange(7.0,16.0,step=0.25)
-        py.hist(mag_sch,bins=bins,histtype='step',label=r'Sch'+'$\ddot{o}$'+'del et al. 2009')
-        py.hist(mag_gc,bins=bins,weights=oldProb,histtype='step',label='GCOWS')
-        py.xlabel("K' mag")
-        py.ylabel('Number of Stars')
-        py.yscale('log')
-        py.savefig('/u/schappell/plots/KLF_TOTAL_sample.png')
-
-
-        py.clf()
-        py.hist(mag_sch,bins=bins,histtype='step')
-        py.xlabel("K' mag")
-        py.ylabel('Number of Stars')
-        py.yscale('log')
-        py.savefig('/u/schappell/plots/KLF_schodel_sample.png')
-
-
-    if (single==False):
-        os.system('g++ sc_mn_FINAL.cpp gauss_legendre.c -o sc_mn -std=c++11 -lpthread -I/u/schappell/code/c -I/u/schappell/code/c/boost/config -L/u/schappell/multinest/MultiNest/lib -lmultinest')
-        #os.system('g++ sc_mn_mthread.cpp gauss_legendre.c -o sc_mn -std=c++11 -lpthread -I/u/schappell/code/c -I/u/schappell/code/c/boost/config -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -L/u/schappell/code/c -lmultinest')
-
-        outCommand = './sc_mn '+mnRoot+' '+str(mnAlpha)+' '+str(mnDelta)+' '+str(mnBreak)+' '+str(max_r)+' '+str(Rcut)
-        outCommand += ' '+str(situation)+' '+str(innerCut)+' '+str(outerCut)+' '+str(nonRadial)+' '+label
-
-        pdb.set_trace()
-
-    else:
-       os.system('g++ sc_mn_single.cpp gauss_legendre.c -o sc_mn -I/u/schappell/code/c -I/u/schappell/code/c/boost/config -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -lmultinest') 
-
-       outCommand = './sc_mn '+mnRoot+' '+str(max_r)+' '+str(Rcut)+' '+str(nonRadial)+' '+label
-
-    os.system(outCommand)
-
-
-
-def testCMN_old(numStars=27,min_r=0.0,max_r=1.0,gamma=-1.0,alpha=4.0,delta=4.0,r_break=0.5,perturb=False,R2d_cut=1.7,
-                label='test_r2donly',offset_al=0.0,offset_de=0.0,offset_br=0.0,solver=True,situation=3,innerCut=0.0,outerCut=15.0,
-                numStarsM=2127,nonRadial=0):
-
-    #max_r in pc
-    #R2d_cut in arcsec
-    #r_break in pc
-    #scaling_a in pc
-    #offset parameters ADD that offset to the true value (alpha, delta, etc) and gives that new value to MN
-    #perturb adds random perturbation (+ or -) within one sigma to all accelerations
-    #rhoModel sets which model for density used, broken=borken power law (gamma, alpha, delta, and r_break)
-    #         dehnen=dehnen (gamma and scaling radius)
-
-    #situation = 1, alpha, delta, and r_break free, stars in maser mosaic not included
-               # 2, only gamma free, stars in maser mosaic not included
-               # 3, alpha, delta, and r_break free, stars in maser mosaic included
-               # 4, only gamma free, stars in maser mosaic included
-
-    if ((situation != 1) & (situation != 2) & (situation != 3) & (situation != 4)):
-        sys.exit("Did not pick available situation, try 1, 2, 3, or 4")
-        
-
-    if (solver==False):
-    #if not using solver
-        numt = 100000
-
-    R2d_cut *= dist / au_in_pc #R2d_cut now in pc
-    innerCut *= dist / au_in_pc
-    outerCut *= dist / au_in_pc
-
-    #read in actual stars
-    actual = np.loadtxt('/u/schappell/code/c/stars_gcows_for_mock.dat')
-    are_act = actual[:,2]
-    pOld_act = actual[:,3]
-
-    if (nonRadial>0):
-        plate_scale=0.00995
-        gcows_zero = np.array([1500.0,1500.0])
-        gcows = pyfits.getdata('/u/schappell/Downloads/NIRC2 radial mask/nirc2_gcows_2010_all_mask.fits')
-
-    #density profile
-    def density(r,gamma=gamma,alpha=alpha,delta=delta,r_break=r_break):
-        try:
-            (r/r_break)**(-1.0*gamma)*(1.0 + (r/r_break)**delta)**((gamma-alpha)/delta)*r**2
-        except:
-            pdb.set_trace()
-        return (r/r_break)**(-1.0*gamma)*(1.0 + (r/r_break)**delta)**((gamma-alpha)/delta)*r**2
-
-      #  elif (rhoModel=='dehnen'):
-       #     try:
-                #(3.0 - gamma)*r**2*scaling_a / (r**gamma*(r+scaling_a)**(4.0-gamma))
-         #       r**(-1.0*gamma+2.0)*((r/scaling_a)+1.0)**(-4.0+gamma)
-                #print scaling_a
-         #   except:
-          #      pdb.set_trace()
-            #return (3.0 - gamma)*r**2*scaling_a / (r**gamma*(r+scaling_a)**(4.0-gamma))
-          #  return r**(-1.0*gamma+2.0)*((r/scaling_a)+1.0)**(-4.0+gamma)
-
-    if (solver==True):
-        const1 = integrate.quad(density,min_r,max_r)
-        const1 = const1[0]
-    else:
-    #if not using solver
-        delta_r = (max_r - min_r)/numt
-        test_r = np.array([delta_r * i for i in range(numt)])
-        test_r += min_r
-        if (test_r[0]==0.0):
-            test_r[0] += 1.0e-100
-        test_c = np.array([density(test_r[i]) for i in range(numt)])
-        const1 = np.sum(test_c)
-        inverse_c = np.zeros(numt)
-        for i in range(numt):
-            tdex = np.arange(i+1)
-            inverse_c[i] = np.sum(test_c[tdex]) / const1
-
-    #pdb.set_trace()
-
-    def CDF(rprime,*needed):
-        const1,yprime = needed
-        value = np.array([])
-        for val in rprime:
-            if (val < min_r):
-                value = np.append(value, -1.0)
-            else:
-                tmp = integrate.quad(density,min_r,val)
-                value = np.append(value,abs(tmp[0]/const1 - yprime))
-        return value
-
-    #rand01 = np.random.rand(numStars)
-
-    radius = np.zeros(numStars)
-    R2d = np.zeros(numStars)
-    randFinal = np.zeros(numStars)
-    ii = 0
-    while(ii < numStars):
-        #pdb.set_trace()
-        #yprime = rand01[i]
-
-        rand01 = np.random.rand(1)
-        rand_angle = math.acos(np.random.rand(1))
-
-        if (solver==True):
-            rand_r = -1.0
-            while (rand_r < min_r):
-                rand_r = fsolve(CDF, 0.1,args=(const1,rand01)) #in pc
-                if (rand_r==0.1):
-                    tmp = minimize(CDF,0.1,args=(const1,rand01))
-                    rand_r = tmp.x
-                    if (rand_r==0.1):
-                        tmp = minimize(CDF,0.1,method='nelder-mead',args=(const1,rand01),options={'maxiter':1000})
-                        rand_r = tmp.x
-                        if (rand_r==0.1):
-                            pdb.set_trace()
-        else: 
-        #if not running solver
-            tmpdex = np.argmin(abs(rand01 - inverse_c))
-            rand_r = test_r[tmpdex]
-
-        rand_R2d = np.sin(rand_angle) * rand_r
-        if (rand_R2d <= R2d_cut):
-            if (nonRadial==0):
-                radius[ii] = rand_r
-                R2d[ii] = rand_R2d
-                randFinal[ii] = rand01
-                print ii
-                ii += 1
-            else:
-                rand_angle2 = math.acos(np.random.rand(1)*2.0 - 1.0)
-                rand_x_pixels = (rand_R2d * math.cos(rand_angle2))/plate_scale + gcows_zero[0]
-                rand_y_pixels = (rand_R2d * math.sin(rand_angle2))/plate_scale + gcows_zero[1]
-                if((rand_x_pixels >= 0.0) & (rand_y_pixels >= 0.0) & (gcows[rand_x_pixels,rand_y_pixels]>0.0)):
-                    radius[ii] = rand_r
-                    R2d[ii] = rand_R2d
-                    randFinal[ii] = rand01
-                    print ii
-                    ii += 1
-        #print ii
-
-    #pdb.set_trace()
-    radius *= cm_in_pc #in cm
-    R2d *= cm_in_pc #in cm
-    #pdb.set_trace()
-
-    #WRONG!!!!R2d = np.cos(np.random.rand(numStars)*pi/2.0) * radius
-    accel = -1.0 * GM * R2d / radius**3 #in cm/s^2
-
-    randex = np.random.randint(len(are_act),size=numStars)
-    are = are_act[randex]
-    pOld = pOld_act[randex]
-
-    if (perturb == True):
-        pert = np.random.rand(numStars)*2.0 - 1.0
-        accel = accel + pert*are #perturb true accelerations within one sigma
-    
-    np.savetxt('/u/schappell/code/c/stars_mn.dat',np.transpose([R2d,accel,are,pOld]),delimiter=' ')
-
-    #cutUse = R2d_cut
-    if (situation > 2):
-        #cutUse = outerCut * dist / au_in_pc #if using maser stars, max R2d is that of outer maser cut
-        #otherwise max R2d is the cut in the central pointing
-
-      #  if (solver==True):
-      #      const1 = integrate.quad(density,min_r,max_r)
-      #      const1 = const1[0]
-      #  else:
-      #      #if not using solver
-      #      delta_r = (max_r - min_r)/numt
-      #      test_r = np.array([delta_r * i for i in range(numt)])
-      #      test_r += min_r
-      #      if (test_r[0]==0.0):
-      #          test_r[0] += 1.0e-100
-      #      test_c = np.array([density(test_r[i]) for i in range(numt)])
-      #      const1 = np.sum(test_c)
-      #      inverse_c = np.zeros(numt)
-      #      for i in range(numt):
-      #          tdex = np.arange(i+1)
-      #          inverse_c[i] = np.sum(test_c[tdex]) / const1
-
-
-        radiusM = np.zeros(numStarsM)
-        R2dM = np.zeros(numStarsM)
-        randFinalM = np.zeros(numStarsM)
-        ii = 0
-        while(ii < numStarsM):
-
-            rand01 = np.random.rand(1)
-            rand_angle = math.acos(np.random.rand(1))
-
-            if (solver==True):
-                rand_r = -1.0
-                while (rand_r < min_r):
-                    rand_r = fsolve(CDF, 0.1,args=(const1,rand01)) #in pc
-                    if (rand_r==0.1):
-                        tmp = minimize(CDF,0.1,args=(const1,rand01))
-                        rand_r = tmp.x
-                        if (rand_r==0.1):
-                            tmp = minimize(CDF,0.1,method='nelder-mead',args=(const1,rand01),options={'maxiter':1000})
-                            rand_r = tmp.x
-                            if (rand_r==0.1):
-                                pdb.set_trace()
-            else: 
-                #if not running solver
-                tmpdex = np.argmin(abs(rand01 - inverse_c))
-                rand_r = test_r[tmpdex]
-
-            rand_R2d = np.sin(rand_angle) * rand_r
-            if ((rand_R2d < outerCut) & (rand_R2d > innerCut)):
-                radiusM[ii] = rand_r
-                R2dM[ii] = rand_R2d
-                randFinalM[ii] = rand01
-                print ii
-                ii += 1
-
-        R2dM *= cm_in_pc #in cm
-        #read in actual stars
-        #actual = np.loadtxt('/u/schappell/code/c/maser_mn_actual.dat')
-        actual = np.loadtxt('/u/schappell/code/c/stars_schodel_for_mock.dat')
-        pOldM_act = actual[:,1]
-        randex = np.random.randint(len(pOldM_act),size=numStarsM)
-        pOldM = pOldM_act[randex]
-        np.savetxt('/u/schappell/code/c/maser_mn.dat',np.transpose([R2dM,pOldM]),delimiter=' ')
-        radius = np.append(radius,radiusM)
-        np.savetxt('/u/schappell/code/c/stars_r.dat',np.transpose([radius]),delimiter=' ')
-
-    #pdb.set_trace()
-
-    mnRoot = '/u/schappell/pmnOld/'+label+'_'
-    mnAlpha = alpha + offset_al
-    mnDelta = delta + offset_de
-    mnBreak = r_break + offset_br
-    #mnScaling = scaling_a + offset_a
-
-    outCommand = './sc_mn '+mnRoot+' '
-
-   # if (rhoModel == 'broken'):
-    os.system('g++ sc_mn_maser.cpp gauss_legendre.c -o sc_mn -I/u/schappell/code/c -I/u/schappell/code/c/boost/config -gge -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -lmultinest')
-    outCommand += str(mnAlpha)+' '+str(mnDelta)+' '+str(mnBreak)+' '+str(max_r)+' '+str(R2d_cut)+' '+str(situation)
-    outCommand += ' '+str(innerCut)+' '+str(outerCut)+' '+str(nonRadial)
-    os.system(outCommand)
-  #  elif (rhoModel == 'dehnen'):
-   #     os.system('g++ sc_mn_fix_dehnen.cpp gauss_legendre.c -o sc_mn -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -lmultinest')
-    #    outCommand += str(mnScaling)+' '+str(max_r)+' '+str(R2d_cut)
-     #   os.system(outCommand)
-
-
-
-def testCMN(numStars=3705,min_r=0.0,max_r=5.0,gamma=-1.0,alpha=4.0,delta=4.0,r_break=0.5,perturb=False,R2d_cut=5.0,
-            label='test_r2donly',offset_al=0.0,offset_de=0.0,offset_br=0.0,solver=True,situation=4,innerCut=5.0,outerCut=15.0,
-            nonRadial=1,resume=False,cfact=0.5,numTest=0):
-
-
-    #max_r in pc
-    #R2d_cut in arcsec
-    #r_break in pc
-    #scaling_a in pc
-    #offset parameters ADD that offset to the true value (alpha, delta, etc) and gives that new value to MN
-    #perturb adds random perturbation (+ or -) within one sigma to all accelerations
-    #rhoModel sets which model for density used, broken=borken power law (gamma, alpha, delta, and r_break)
-    #         dehnen=dehnen (gamma and scaling radius)
-
-    #situation = 1, alpha, delta, and r_break free, stars in maser mosaic not included
-               # 2, only gamma free, stars in maser mosaic not included
-               # 3, alpha, delta, and r_break free, stars in maser mosaic included
-               # 4, only gamma free, stars in maser mosaic included
-
-    if ((resume == False) | (numTest > 1)):
-        if ((situation != 1) & (situation != 2) & (situation != 3) & (situation != 4)):
-            sys.exit("Did not pick available situation, try 1, 2, 3, or 4")
-        
-
-        if (solver==False):
-    #if not using solver
-            numt = 100000
-
-        R2d_cut *= dist / au_in_pc #R2d_cut now in pc
-        innerCut *= dist / au_in_pc
-        outerCut *= dist / au_in_pc
-
-    #read in actual stars
-        actual = np.loadtxt('/u/schappell/code/c/stars_gcows_for_mock.dat')
-        are_act = actual[:,2]
-        pOld_act = actual[:,3]
-        
-        if (nonRadial>0):
-            plate_scale=0.00995 #arcsec/pixel
-            gcows_zero = np.array([1500.0,1500.0])
-            gcows = pyfits.getdata('/u/schappell/Downloads/NIRC2 radial mask/nirc2_gcows_2010_all_mask.fits')
-
-            xPIX = np.array([])
-            yPIX = np.array([])
-
-    #density profile
-        def density(r,gamma=gamma,alpha=alpha,delta=delta,r_break=r_break):
-            try:
-                (r/r_break)**(-1.0*gamma)*(1.0 + (r/r_break)**delta)**((gamma-alpha)/delta)*r**2
-            except:
-                pdb.set_trace()
-            return (r/r_break)**(-1.0*gamma)*(1.0 + (r/r_break)**delta)**((gamma-alpha)/delta)*r**2
-
-
-        if (solver==True):
-            const1 = integrate.quad(density,min_r,max_r)
-            const1 = const1[0]
-        else:
-    #if not using solver
-            delta_r = (max_r - min_r)/numt
-            test_r = np.array([delta_r * i for i in range(numt)])
-            test_r += min_r
-            if (test_r[0]==0.0):
-                test_r[0] += 1.0e-100
-            test_c = np.array([density(test_r[i]) for i in range(numt)])
-            const1 = np.sum(test_c)
-            inverse_c = np.zeros(numt)
-            for i in range(numt):
-                tdex = np.arange(i+1)
-                inverse_c[i] = np.sum(test_c[tdex]) / const1
-
-    #pdb.set_trace()
-
-        def beta_CDF(rprime,*needed):
-            const1,yprime = needed
-            value = np.array([])
-            for val in rprime:
-                if (val < min_r):
-                    value = np.append(value,-1.0)
-                else:
-                    atmp = (3.0 - gamma) / delta
-                    btmp = -1.0*(3.0 - alpha) / delta
-                    xtmp = val**delta / (r_break**delta + val**delta)
-                    tmp = scipy.special.betainc(atmp,btmp,xtmp) / scipy.special.beta(atmp,btmp)
-                    value = np.append(value,abs(tmp - yprime))
-            return value
-
-        def CDF(rprime,*needed):
-            const1,yprime = needed
-            value = np.array([])
-            for val in rprime:
-                if (val < min_r):
-                    value = np.append(value, -1.0)
-                else:
-                    tmp = integrate.quad(density,min_r,val)
-                    value = np.append(value,abs(tmp[0]/const1 - yprime))
-            return value
-
-    #rand01 = np.random.rand(numStars)
-
-        radius = np.array([])
-        R2d = np.array([])
-        randFinal = np.array([])
-        accel = np.array([])
-        are = np.array([])
-        
-        if (situation > 2):
-            radiusM = np.array([])
-            R2dM = np.array([])
-            randFinalM = np.array([])
-
-        ii = 0
-        if (numTest > 1):
-            numStars *= numTest
-        while(ii < numStars):
-        #pdb.set_trace()
-        #yprime = rand01[i]
-
-            cval = np.random.rand(1)
-
-            rand01 = np.random.rand(1)
-            rand_angle = math.acos(np.random.rand(1))
-
-            if (solver==True):
-                rand_r = -1.0
-                while (rand_r < min_r):
-                    rand_r = fsolve(CDF, 0.1,args=(const1,rand01)) #in pc
-                    if (rand_r==0.1):
-                        tmp = minimize(CDF,0.1,args=(const1,rand01))
-                        rand_r = tmp.x
-                        if (rand_r==0.1):
-                            tmp = minimize(CDF,0.1,method='nelder-mead',args=(const1,rand01),options={'maxiter':1000})
-                            rand_r = tmp.x
-                            if (rand_r==0.1):
-                                pdb.set_trace()
-            else: 
-        #if not running solver
-                tmpdex = np.argmin(abs(rand01 - inverse_c))
-                rand_r = test_r[tmpdex]
-
-            rand_R2d = np.sin(rand_angle) * rand_r #in pc
-            #if (cval <= cfact):
-            if ((rand_R2d <= R2d_cut) & (cval < cfact)):
-                if (nonRadial==0):
-                    rand_r *= cm_in_pc
-                    rand_R2d *= cm_in_pc
-                    radius = np.append(radius,rand_r)
-                    R2d = np.append(R2d,rand_R2d)
-                    randex = np.random.randint(len(are_act),size=1)
-                    are = np.append(are,are_act[randex])
-                    accel_abs = -1.0 * GM * rand_R2d / rand_r**3 #in cm/s^2
-                    accel = np.append(accel,np.random.normal(loc=accel_abs,scale=are_act[randex],size=1))
-                    randFinal = np.append(randFinal,rand01)
-                    print ii
-                    ii += 1
-                else:
-                    rand_angle2 = np.random.rand(1)*2.0*pi
-                    rand_x_pixels = int(round((rand_R2d * au_in_pc * math.cos(rand_angle2))/(plate_scale * dist) + gcows_zero[0]))
-                    rand_y_pixels = int(round((rand_R2d * au_in_pc * math.sin(rand_angle2))/(plate_scale * dist) + gcows_zero[1]))
-                #pc to arcsec, then to pixels
-                    if((rand_x_pixels >= 0.0) & (rand_y_pixels >= 0.0) & (gcows[rand_y_pixels,rand_x_pixels] > 0.0)):
-                        rand_r *= cm_in_pc
-                        rand_R2d *= cm_in_pc
-                        radius = np.append(radius,rand_r)
-                        R2d = np.append(R2d,rand_R2d)
-                        randex = np.random.randint(len(are_act),size=1)
-                        are = np.append(are,are_act[randex])
-                        accel_abs = -1.0 * GM * rand_R2d / rand_r**3 #in cm/s^2
-                        accel = np.append(accel,np.random.normal(loc=accel_abs,scale=are_act[randex],size=1))
-                        randFinal = np.append(randFinal,rand01)
-                        xPIX = np.append(xPIX,rand_x_pixels)
-                        yPIX = np.append(yPIX,rand_y_pixels)
-                        print ii
-                        ii += 1
-
-            #else:
-            if ((rand_R2d < outerCut) & (rand_R2d > innerCut)):
-                if ((situation > 2) & (cval > cfact)):
-                    radiusM = np.append(radiusM,rand_r)
-                    R2dM = np.append(R2dM,rand_R2d)
-                    randFinalM = np.append(randFinalM,rand01)
-                    print ii
-                    ii += 1
-                    
-    #radius *= cm_in_pc #in cm
-    #R2d *= cm_in_pc #in cm
-
-    #WRONG!!!!R2d = np.cos(np.random.rand(numStars)*pi/2.0) * radius
-    #accel_mu = -1.0 * GM * R2d / radius**3 #in cm/s^2
-
-        randex = np.random.randint(len(are_act),size=len(radius))
-    #are = are_act[randex]
-        pOld = pOld_act[randex]
-
-        if (perturb == True):
-            pert = np.random.rand(numStars)*2.0 - 1.0
-            accel = accel + pert*are #perturb true accelerations within one sigma
-    
-    #pdb.set_trace()
-        np.savetxt('/u/schappell/code/c/stars_mn'+label+'.dat',np.transpose([R2d,accel,are,pOld]),delimiter=' ')
-
-        if (situation > 2):
-            radiusM *= cm_in_pc
-            R2dM *= cm_in_pc #in cm
-        #read in actual stars
-        #actual = np.loadtxt('/u/schappell/code/c/maser_mn_actual.dat')
-            actual = np.loadtxt('/u/schappell/code/c/stars_schodel_for_mock.dat')
-            pOldM_act = actual[:,1]
-            randex = np.random.randint(len(pOldM_act),size=len(radiusM))
-            pOldM = pOldM_act[randex]
-            np.savetxt('/u/schappell/code/c/maser_mn'+label+'.dat',np.transpose([R2dM,pOldM]),delimiter=' ')
-            radius = np.append(radius,radiusM)
-
-    #pdb.set_trace()
-        np.savetxt('/u/schappell/code/c/stars_r'+label+'.dat',np.transpose([radius]),delimiter=' ')
-        np.savetxt('/u/schappell/code/c/xy_pixels'+label+'.dat',np.transpose([xPIX,yPIX]),delimiter=' ')
-
-
-    if (numTest <= 1):
-        mnRoot = '/u/schappell/pmnOld/'+label+'_'
-        mnAlpha = alpha + offset_al
-        mnDelta = delta + offset_de
-        mnBreak = r_break + offset_br
-
-        outCommand = './sc_mn '+mnRoot+' '
-
-        pdb.set_trace()
-        os.system('g++ sc_mn_mthread.cpp gauss_legendre.c -o sc_mn -std=c++11 -lpthread -I/u/schappell/code/c -I/u/schappell/code/c/boost/config -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -lmultinest')
-    #os.system('g++ sc_mn_maser_accel.cpp gauss_legendre.c -o sc_mn -I/u/schappell/code/c -I/u/schappell/code/c/boost/config -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -lmultinest')
-    
-        outCommand += str(mnAlpha)+' '+str(mnDelta)+' '+str(mnBreak)+' '+str(max_r)+' '+str(R2d_cut)+' '+str(situation)
-        outCommand += ' '+str(innerCut)+' '+str(outerCut)+' '+str(nonRadial)+' '+label
-        os.system(outCommand)
-
-
-
-
-def testModel(numStars=27,min_r=0.0,max_r=5.0,gamma=-1.0,alpha=4.0,delta=4.0,r_break=0.5,perturb=False,
-              offset_al=0.0,offset_de=0.0,offset_br=0.0,numTest=100,R2d_cut=1.7,solver=False,situation=1,
-              innerCut=5.0,outerCut=10.0,numStarsM=1856,nonRadial=1,label='',resume=False,cfact=0.5):
-
-    #variance for broken power law
-    #numStars is number of stars in each run, numTest is the number of iterations
-    #min and max_r are the 3D radius ranges considered for the synthetic data
-    #perturb adds random error within one sigma to data
-    #offset_* ADDS this offset to the real model parameter and gives new value to MultiNest
-
-    label = 'tmp'+label
-
-    yesGamma = np.zeros(numTest)
-    tot_r3d = np.array([])
-    tot_r2d = np.array([])
-    tot_ar = np.array([])
-    totpost = np.array([])
-    meanGamma = np.zeros(numTest)
-    maxLGamma = np.zeros(numTest)
-    mnEvid = np.zeros(numTest)
-
-    for i in range(numTest):
-        #pdb.set_trace()
-        #os.system('rm /u/schappell/pmnOld/tmp_*')
-        testCMN(numStars=numStars,min_r=min_r,max_r=max_r,gamma=gamma,alpha=alpha,delta=delta,r_break=r_break,
-                perturb=perturb,label=label,offset_al=offset_al,offset_de=offset_de,offset_br=offset_br,
-                R2d_cut=R2d_cut,solver=solver,situation=situation,innerCut=innerCut,outerCut=outerCut,
-                nonRadial=nonRadial,resume=resume,cfact=cfact)
-                #numStarsM=numStarsM)
-
-        pdb.set_trace()
-        tmpPost = np.loadtxt('/u/schappell/pmnOld/'+label+'_post_equal_weights.dat')
-        #pdb.set_trace()
-        tmphist,tmpbins = np.histogram(tmpPost[:,0]*5-3,bins=100,weights=abs(tmpPost[:,1]))
-        levels = getContourLevels(tmphist)
-        tmpdex = np.where(tmphist >= levels[0])[0]
-        totpost = np.append(totpost,tmpPost[:,0]*5-3)
-        if ((gamma >= np.min(tmpbins[tmpdex])) & (gamma <= np.max(tmpbins[tmpdex+1]))):
-            yesGamma[i] = 1.0
-        tmpDat = np.loadtxt('/u/schappell/code/c/stars_mn'+label+'.dat')
-        #tmpOld = tmpDat[:,3]
-        #tmpR2d = tmpDat[:,0]
-        #tmpdex = np.where(tmpR2d <= (0.07*dist*cm_in_au))[0]
-        #if (np.sum(tmpOld[tmpdex]) >= 8.48):
-        #    yesStars[i] = 1.0
-        tot_r2d = np.append(tot_r2d,tmpDat[:,0])
-        tot_ar = np.append(tot_ar,tmpDat[:,1])
-        tmpDat = np.loadtxt('/u/schappell/code/c/stars_r'+label+'.dat')
-        tot_r3d = np.append(tot_r3d,tmpDat[:,0])
-        mnOut = np.loadtxt('/u/schappell/pmnOld/'+label+'_summary.txt')
-        meanGamma[i] = mnOut[0]*5-3
-        maxLGamma[i] = mnOut[2]*5-3
-        mnEvid[i] = mnOut[4]
-
-
-    outFile = '/u/schappell/pmnOld/SchCor_'
-    if (situation==1):
-        outFile += 'free_'
-    elif (situation==2):
-        outFile += 'fixed_'
-    elif (situation==3):
-        outFile += 'maser_free_'
-    elif (situation==4):
-        outFile += 'maser_fixed_'
-    outFile += 'g'+str(gamma)+'_a'+str(alpha)+'_d'+str(delta)+'_br'
-    outFile += str(r_break)+'_nStar'+str(numStars)+'_Rcut'+str(R2d_cut)
-    if (situation > 2):
-        outFile += '_'+str(innerCut)+'_'+str(outerCut)
-    outFile += 'arcsec'+'_meanG_maxLG_evid.dat'
-    np.savetxt(outFile,np.transpose([meanGamma,maxLGamma,mnEvid]),delimiter=' ')
-
-
-   # if (whatReturn=='mean'):
-   #     return np.mean(mnGamma)
-   # elif (whatReturn=='median'):
-   #     return np.median(mnGamma)
-   # elif (whatReturn=='mode'):
-   #     mnGamma = np.round(mnGamma,2)
-   #     tmp = stats.mode(mnGamma)
-   #     return tmp[0]
-   # elif (whatReturn=='pass?'):
-    ghist, gbins = np.histogram(totpost,bins=100)
-    r2hist, r2bins = np.histogram(tot_r2d,bins=100)
-    r3hist, r3bins = np.histogram(tot_r3d,bins=100)
-    arhist, arbins = np.histogram(np.log10(-1.0*tot_ar),bins=100)
-    tmpout = np.zeros([numTest,8])
-    tmpout[:,1] = ghist
-    tmpout[:,3] = r2hist
-    tmpout[:,5] = r3hist
-    tmpout[:,7] = arhist
-    tmpout[:,0] = np.array([(gbins[tt+1]+gbins[tt])/2.0 for tt in range(numTest)])
-    tmpout[:,2] = np.array([(r2bins[tt+1]+r2bins[tt])/2.0 for tt in range(numTest)])
-    tmpout[:,4] = np.array([(r3bins[tt+1]+r3bins[tt])/2.0 for tt in range(numTest)])
-    tmpout[:,6] = np.array([(arbins[tt+1]+arbins[tt])/2.0 for tt in range(numTest)])
-    outFile = '/u/schappell/pmnOld/SchCor_'
-    if (situation==1):
-        outFile += 'free_'
-    elif (situation==2):
-        outFile += 'fixed_'
-    elif (situation==3):
-        outFile += 'maser_free_'
-    elif (situation==4):
-        outFile += 'maser_fixed_'
-    outFile += 'g'+str(gamma)+'_a'+str(alpha)+'_d'+str(delta)+'_br'
-    outFile += str(r_break)+'_nStar'+str(numStars)+'_Rcut'+str(R2d_cut)
-    if (situation > 2):
-        outFile += '_'+str(innerCut)+'_'+str(outerCut)
-    outFile += 'arcsec'+'_hist_gamma_r2d_3d_logar_bins.dat'
-    np.savetxt(outFile,tmpout,delimiter=' ')
-    return np.sum(yesGamma)/numTest
-
-
-#def testDehnenPL(numStars=27,min_r=0.0,max_r=1.0,perturb=False,offset_a=0.0,numTest=100,whatReturn='mode',R2d_cut=1.7,solver=False):
-
-    #tests range of dehnen power law models, range in gamma and a (scaling radius)
-    #gamma is always the free parameter in MultiNest
-
- #   gtest = np.array([-1.0,-0.5,0.5,1.0,1.5])
- #   atest = np.array([0.7,0.8,0.9,1.0,1.1])
-
-#    found_gamma = np.zeros((len(gtest),len(atest)))
-    
- #   for gg in range(len(gtest)):
-  #      for aa in range(len(atest)):
-   #         tmp=testModel(numStars=numStars,min_r=min_r,max_r=max_r,gamma=gtest[gg],scaling_a=atest[aa],R2d_cut=R2d_cut,
-    #                      perturb=perturb,rhoModel='dehnen',offset_a=offset_a,numTest=numTest,whatReturn=whatReturn,solver=solver)
-     #       found_gamma[gg,aa] = tmp
-
-
-    #pdb.set_trace()
-
-
-
-def testBrokenPL(numStars=3705,min_r=0.0,max_r=5.0,perturb=False,offset_al=0.0,offset_de=0.0,offset_br=0.0,numTest=20,
-                 R2d_cut=5.0,solver=True,situation=4,innerCut=5.0,outerCut=15.0,numStarsM=1856,nonRadial=1,label='',
-                 resume=False,cfact=0.5):
-
-    #tests range of broken power law models, range in gamma, alpha, delta, and r_break
-    #gamma is always the free parameter in MultiNest
-
-    #situation = 1, alpha, delta, and r_break free, stars in maser mosaic not included
-               # 2, only gamma free, stars in maser mosaic not included
-               # 3, alpha, delta, and r_break free, stars in maser mosaic included
-               # 4, only gamma free, stars in maser mosaic included
-
-    gtest = np.array([0.01])
-    atest = np.array([2.5])
-    dtest = np.array([3.0])
-    btest = np.array([0.5])
-
-    #if (whatReturn=='pass?'):
-    percent_gamma = np.zeros((len(gtest),len(atest),len(dtest),len(btest)))
-    #percent_stars = np.zeros((len(gtest),len(atest),len(dtest),len(btest)))
-    #else:
-     #   found_return = np.zeros((len(gtest),len(atest),len(dtest),len(btest)))
-    
-    for gg in range(len(gtest)):
-        for aa in range(len(atest)):
-            for dd in range(len(dtest)):
-                for bb in range(len(btest)):
-                    tmp=testModel(numStars=numStars,min_r=min_r,max_r=max_r,gamma=gtest[gg],alpha=atest[aa],
-                                  delta=dtest[dd],r_break=btest[bb],perturb=perturb, offset_al=offset_al,
-                                  offset_de=offset_de,offset_br=offset_br,numTest=numTest,R2d_cut=R2d_cut,
-                                  solver=solver,situation=situation,innerCut=innerCut,outerCut=outerCut,
-                                  numStarsM=numStarsM,nonRadial=nonRadial,label=label,resume=resume,cfact=cfact)
-                    percent_gamma[gg,aa,dd,bb] = tmp
-                    #percent_stars[gg,aa,dd,bb] = tmp[1]
-                    #else:
-                     #   found_return[gg,aa,dd,bb] = tmp
-
-
-    pdb.set_trace()
-
-
-
-def getContourLevels(probDist,percLevels=[.997,.95,.6827]):
-    #From Breann Sitarski, corrected version of Sylvana Yelda's code
-    """
-        If we want to overlay countours, we need to figure out the
-        appropriate levels. The algorithim is:
-        1. Sort all pixels in the 2D histogram (largest to smallest)
-        2. Make a cumulative distribution function
-        3. Find the level at which 68% of trials are enclosed.
-        """
-    # Get indices for sorted pixel values (smallest to largest)
-    #pdb.set_trace()
-    sid0 = probDist.flatten().argsort()
-    # Reverse indices, now largest to smallest
-    sid = sid0[::-1]
-    # Sort the actual pixel values
-    pixSort = probDist.flatten()[sid]
-    
-    # Make a cumulative distribution function starting from the
-    # highest pixel value. This way we can find the level above
-    # which 68% of the trials will fall.
-    cdf = np.cumsum(pixSort)
-    cdf = cdf/float(max(cdf))
-    
-    # Determine point at which we reach 68% level
-    percents = np.array(percLevels)
-    levels = np.zeros(len(percents), dtype=float)
-    for ii in range(len(levels)):
-        # Get the index of the pixel at which the CDF
-        # reaches this percentage (the first one found)
-        idx = (np.where(cdf < percents[ii]))[0]
-        
-        # Now get the level of that pixel
-        levels[ii] = pixSort[idx[-1]]
-    return levels
-
-
-
-def maserStars(maserDate='13jullgs1',innerCut=5.0,outerCut=15.0,magCut=15.5,schodel=False,lmagCut=0.0,
-               onlySchodel=False,mnAlpha=4.0,mnDelta=4.0,mnBreak=0.5,max_r=5.0,situation=1,label=''):
-
-
-    if (onlySchodel==True):
-        schodel=True
-
-    if (schodel==False):
-        scale = 0.00995
-        maserFile = np.loadtxt('/u/ghezgroup/data/gc/'+maserDate+'/combo/starfinder/tables/mag'+
-                               maserDate+'_msr_kp_rms_named.lis',usecols=(1,3,4))
-        mag = maserFile[:,0]
-        x_as = maserFile[:,1] * scale
-        y_as = maserFile[:,2] * scale
-
-        names = np.genfromtxt('/u/ghezgroup/data/gc/'+maserDate+'/combo/starfinder/tables/mag'+
-                              maserDate+'_msr_kp_rms_named.lis',usecols=(0),dtype='str')
-
-        R2d = np.sqrt(x_as**2 + y_as**2)
-
-        oldProb = np.ones(len(mag)) #assume old unless otherwise stated
-
-        dbfile = '/g/ghez/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-        connection = sqlite.connect(dbfile)
-    # Create a cursor object
-        cur = connection.cursor()
-
-        for i in range(len(names)):
-            tmpName = str(names[i])
-            try:
-                cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
-                for row in cur:
-                    oldProb[i] = float(row[1])
-            except:
-                continue
-            if ((tmpName == 'S0-38') | (tmpName == 'S0-49') | (tmpName == 'S0-35') | (tmpName == 'S1-32')):
-                oldProb[i] = 1.0
-                if (tmpName == 'S0-61'):
-                    oldProb[i] = 0.0
-
-        for i in range(len(names)):
-            tmpName = str(names[i])
-            try:
-                cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
-                for row in cur:
-                    if ((row[1] == 'T') | (row[2] == 'F')):
-                        oldProb[i] = 0.0
-                    
-            except:
-                continue
-
-    else:
-        R2d = np.array([])
-        mag = np.array([])
-        oldProb = np.array([])
-
-        ext_scale = 0.02705 #arcsec/pixel
-        ext_center = [808,611]
-        extMap = pyfits.getdata('/u/schappell/Downloads/AKs_fg6.fits')
-
-        dbfile = '/g/ghez/data/gc/database/stars.sqlite'
-    # Create a connection to the database file
-        connection = sqlite.connect(dbfile)
-    # Create a cursor object
-        cur = connection.cursor()
-
-        #cur.execute('SELECT young,old,r2d,kext FROM schodel2009')
-        cur.execute('SELECT r2d,k,x,y FROM schoedel2010')
-        for row in cur:
-            #R2d = np.append(R2d,row[0])
-            #mag = np.append(mag,row[1])
-            #oldProb = np.append(oldProb,1.0)
-            #if ((row[0]=='T') & (row[1]=='F')):
-             #   oldProb = np.append(oldProb,0.0)
-            #else:
-             #   oldProb = np.append(oldProb,1.0)
-
-            Xext = int(round(row[2]/ext_scale))+ext_center[0]
-            Yext = int(round(row[3]/ext_scale))+ext_center[0]
-            if ((Xext < 0) | (Yext < 0)):
-                print 'Something is wrong, star is calculated as being off extinction map'
-                return
-            else:
-                if ((Xext < 1600) & (Yext < 1600)):
-                    oldProb = np.append(oldProb,1.0)
-                    R2d = np.append(R2d,row[0])
-                    mag = np.append(mag,row[1] + 2.7 - extMap[Xext,Yext])
-
-    mdex = np.where((R2d > innerCut) & (R2d < outerCut) & (mag < magCut) & (oldProb > 0.0) & (mag > lmagCut))[0]
-    R2d *= dist * cm_in_au
-    if (onlySchodel==False):
-        np.savetxt('/u/schappell/code/c/maser_mn'+label+'.dat',np.transpose([R2d[mdex],oldProb[mdex]]),delimiter=' ')
-    else:
-        np.savetxt('/u/schappell/code/c/onlySchodel_mn.dat',np.transpose([R2d[mdex],oldProb[mdex]]),delimiter=' ')
-        mnRoot = '/u/schappell/pmnOld/Schodelonly_'+label+'_'
-        
-        outCommand = './sc_mn '+mnRoot+' '
-
-        os.system('g++ sc_mn_schodel.cpp gauss_legendre.c -o sc_mn -L/u/schappell/multinest/MultiNest_v2.18_CMake/lib -lmultinest')
-        outCommand += str(mnAlpha)+' '+str(mnDelta)+' '+str(mnBreak)+' '+str(max_r)+' '+str(situation)+' '+str(innerCut)
-        outCommand += ' '+str(outerCut)
-        os.system(outCommand)
-
-
-    return mag[mdex]
-
-
-
-
-
-def deltaError(mag, at, ate, numbins=8):
-    #pdb.set_trace()
-    dex = np.argsort(mag)
-    numstars = len(mag)/numbins
-    #new_ate = np.zeros(len(ate))
-    delta_return = np.zeros(numbins)
-    mag_return = np.zeros(numbins+1)
-    mag_return[0] = np.min(mag)
-    print "Delta errors: "
-    for i in range(numbins):
-        startdex = i * numstars
-        enddex = startdex + numstars - 1
-        tmp_at = at[dex[startdex:enddex]]
-        tmp_ate = ate[dex[startdex:enddex]]
-        tmp_add = fsolve(findAdd, -1e-6,args=(tmp_at,tmp_ate))
-        #new_ate[dex[startdex:enddex]] = np.sqrt(ate[dex[startdex:enddex]]**2 + tmp_add**2)
-        mag_return[i+1] = mag[dex[enddex]]
-        delta_return[i] = tmp_add
-        print "From K mag "+str(mag_return[i])+" to "+str(mag_return[i+1])
-        print tmp_add
-
-    return np.abs(delta_return), mag_return
-
-
-def findAdd(addError,*needed):
-    #pdb.set_trace()
-    at, ate = needed
-    value = np.array([])
-    for tmperror in addError:
-        sigma = at / np.sqrt(ate**2 + tmperror**2)
-        spreadsig = np.where((sigma <= 1.0) & (sigma >= -1.0))[0]
-        percent_in = 100.0 * float(len(spreadsig))/float(len(sigma))
-        value = np.append(value,(68.27 - percent_in)**2)
-
-    return value
-
-
-
-
-def calcCfact(alnDir='14_06_18/',root_tmp='/g/ghez/align/',updateErr=True,align='align/align_d_rms_1000_abs_t',
-              poly='polyfit_nz/fit',points='points_nz/',starlist='all',chainsDir='efit/chains/',innerCut=5.0,
-              nEpochs=0.0,magCut=15.5,globalt0=2006.0,polyj='polyfit_nzj/fit',pvalue=4.0,outerCut=15.0,
-              ak_correct=True,magCutMaser=17.75,Rcut=5.0):
-
-    names, r2d, ar, are, mag_gc, oldProb = accelInfo(alnDir=alnDir,root_tmp=root_tmp,updateErr=updateErr,align=align,poly=poly,
-                                                     Rcut=Rcut,points=points,polyj=polyj,f_test=True,pvalue=pvalue,ak_correct=ak_correct,
-                                                     chainsDir=chainsDir,starlist='all',magCut=magCut,nEpochs=nEpochs,nonRadial=1)
-
-
-
-    idx = np.where(r2d > (innerCut * dist * cm_in_au))[0]
-    #pdb.set_trace()
-    print "Num GCOWS stars: "+str(np.sum(oldProb[idx]))
-    mag_gc = mag_gc[idx]
-    oldProb = oldProb[idx]
-
-
-
-    R2d = np.array([])
-    mag = np.array([])
-    x_pixels = np.array([])
-    y_pixels = np.array([])
-    plate_scale = 0.00995
-    gcows_zero = np.array([1500.0,1500.0])
-    gcows = pyfits.getdata('/u/schappell/Downloads/NIRC2 radial mask/nirc2_gcows_2010_all_mask.fits')
-    
-    ext_scale = 0.02705 #arcsec/pixel
-    ext_center = [808,611]
-    extMap = pyfits.getdata('/u/schappell/Downloads/AKs_fg6.fits')
-
-#connection = mysql.connector.connect(host="galaxy1.astro.ucla.edu",user="dbread",passwd="t36fCEtw",db="gcg")
-#cur = connection.cursor()
-
-    dbfile = '/u/ghezgroup/data/gc/database/stars.sqlite'
+    dbfile = '/g/ghez/data/gc/database/stars.sqlite'
     # Create a connection to the database file
     connection = sqlite.connect(dbfile)
     # Create a cursor object
     cur = connection.cursor()
-        
-    #cur.execute('SELECT young,old,r2d,kext FROM schodel2009')
-    cur.execute('SELECT r2d,k,x,y FROM schoedel2010')
-    for row in cur:
+    oldProb = np.zeros(len(names))
+    #Determine a star's prob of being old
 
-        x_pixels_tmp = int(round((-1.0*row[2] / plate_scale) + gcows_zero[0]))
-        y_pixels_tmp = int(round((row[3] / plate_scale) + gcows_zero[1]))
+    for i in range(len(names)):
+        tmpName = str(names[i])
+        try:
+            cur.execute('SELECT name,young,old FROM stars WHERE name=?', [tmpName])
+            for row in cur:
+                if (row[1] == 'F') | (row[2] == 'T'):
+                    oldProb[i] = 1.0
+                    
+        except:
+            oldProb[i] = 0.0
 
-        Xext = int(round(row[2]/ext_scale))+ext_center[0]
-        Yext = int(round(row[3]/ext_scale))+ext_center[0]
-        if ((Xext < 0) | (Yext < 0)):
-            print 'Something is wrong, star is calculated as being off extinction map'
-            return
-        else:
-            if ((Xext < 1600) & (Yext < 1600)):
-                R2d = np.append(R2d,row[0])
-                mag = np.append(mag,row[1] + 2.7 - extMap[Xext,Yext])
-                x_pixels = np.append(x_pixels,x_pixels_tmp)
-                y_pixels = np.append(y_pixels,y_pixels_tmp)
+    connection = sqlite.connect(dbfile)
+    # Create a cursor object
+    cur = connection.cursor()
+    for i in range(len(names)):
+        tmpName = str(names[i])
+        try:
+            cur.execute('SELECT name,probOldSimPrior FROM unknownSims WHERE name=?', [tmpName])
+            for row in cur:
+                oldProb[i] = float(row[1])
+        except:
+            continue
+        if ((tmpName == 'S0-38') | (tmpName == 'S0-49')):
+            oldProb[i] = 1.0
 
-#pdb.set_trace()
+    if (updateErr == True):
+        origin_val = asciidata.open('/g/ghez/align/' + alnDir + chainsDir + 'efit_summary.txt')
+        ori_x0e = origin_val[18][0]
+        ori_y0e = origin_val[19][0]
+        ori_vxe = origin_val[20][0]
+        ori_vye = origin_val[21][0]
+        t_0 = 2000.0 #hard coded t_0 of sgr*
 
-
-    in_gcows = np.zeros(len(x_pixels))
-    for ii in range(len(x_pixels)):
-        if ((x_pixels[ii] > 0.0) & (y_pixels[ii] > 0.0) & (x_pixels[ii] <= 3000.0) & (y_pixels[ii] <= 3000.0)):
-            in_gcows[ii] = gcows[int(y_pixels[ii]),x_pixels[ii]]
-#pdb.set_trace()
-    idx = np.where((R2d > innerCut) & (R2d < outerCut) & (mag < magCutMaser) & (in_gcows > 0.0))[0]
-
-
-    print "Num Schodel stars: "+str(len(idx))
-
-    #make KLF plot
-    bins = np.arange(9.0,18.5,step=0.5)
-    py.clf()
-    py.hist(mag[idx],bins=bins,histtype='step',label=r'Sch'+'$\ddot{o}$'+'del et al. 2009')
-    py.hist(mag_gc,bins=bins,histtype='step',label='GCOWS',weights=oldProb)
-    py.yscale('log')
-    py.legend(loc=2)
-    py.xlabel("K' Mag")
-    py.ylabel('Number of stars')
-    py.savefig('/u/schappell/plots/KLF_overlap.png')
+    #Index of stars used for multinest
+    pdex = np.where(oldProb > 0.0)[0]
+    #pdex = np.where(oldProb == 1.0)[0]
+    num_stars = len(pdex)
+    tmprint = 0
+    print 'Stars used:'
+    for p in pdex:
+        print tmprint+5,names[p],oldProb[p]
+        tmprint += 1
 
 
+    #Save info to file for c to read
+    savenames = [names[pp] for pp in pdex]
+    r2d = r2d[pdex]
+    ar = ar[pdex]
+    are = are[pdex]
+    oldProb = oldProb[pdex]
+    np.savetxt('/u/schappell/code/c/stars_mn.dat',np.transpose([r2d,ar,are,oldProb]),delimiter=' ')
+
+    os.system('g++ sc_mn.cpp multinest.h')

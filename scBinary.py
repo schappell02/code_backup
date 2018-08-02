@@ -26,7 +26,9 @@ import histNofill
 import pdb
 import scipy.optimize as opter
 from scipy.optimize import fsolve
-from matplotlib.ticker import ScalarFormatter 
+from matplotlib.ticker import ScalarFormatter
+import polyfit2 as pf2
+
 # Several functions were taken from:
 # /ghezgroup/code/python/gcwork/polyfit/accel.py,
 # velocity.py and residuals.py, written by JLu.
@@ -225,18 +227,130 @@ class RVstar(object):
                 self.b09_date = row[0]
         except:
             print str(sname)+' does not have a RV in Bartko 2009'
+
+        try:
+            cur = database.cursor()
+            cur.execute("SELECT ddate,vz,vz_err FROM gillessen2017 WHERE ucla='%s'" %(sname))
+            tmpdate = []
+            tmprv = []
+            tmperr = []
+            for row in cur:
+                if ((row[2]==row[2]) & (row[2]!=0)):
+                    try:
+                        tmprv = np.append(tmprv,float(row[1]))
+                        tmperr = np.append(tmperr,float(row[2]))
+                        tmpdate = np.append(tmpdate,float(row[0]))
+                    except:
+                        continue
+            if (len(tmpdate)>0):
+                self.g17_date = tmpdate
+                self.g17_vz = tmprv
+                self.g17_vzerr = tmperr
+        except:
+            print str(sname)+' does not have any points in Gillessen 2017'
         #Read in disk probabilities
-        disk_names = np.loadtxt('/u/schappell/diskmembers.dat',usecols=(0,),dtype='|S15')
-        disk_prob = np.loadtxt('/u/schappell/diskmembers.dat',delimiter='&',usecols=(12,))
-        for i in range(len(disk_names)):
-            if (str(sname)==str(disk_names[i])):
-                self.diskProb = disk_prob[i]
+        #disk_names = np.loadtxt('/u/schappell/diskmembers.dat',usecols=(0,),dtype='|S15')
+        #disk_prob = np.loadtxt('/u/schappell/diskmembers.dat',delimiter='&',usecols=(12,))
+        #for i in range(len(disk_names)):
+        #   if (str(sname)==str(disk_names[i])):
+        #       self.diskProb = disk_prob[i]
+
+
+
 
 
     def appendRV(self,addRV,addRVerr,addDate):
         self.vz = np.append(self.vz,addRV)
         self.vzerr = np.append(self.vzerr,addRVerr)
         self.date = np.append(self.date,addDate)
+    
+
+
+
+
+    def futureRV(self,future_yr=2017.38,wBartko=True,wGill=True):
+        if ((len(self.vz) >= 2) | ((wBartko==True) & (hasattr(self,'b09_vz'))) | ((wGill==True) & (hasattr(self,'g17_vz')))):
+            py.clf()
+            tmpvz = np.append(self.vz,[])
+            tmpvzerr = np.append(self.vzerr,[])
+            tmpdate = np.append(self.date,[])
+            if ((wBartko == True) & (hasattr(self,'b09_vz'))):
+                try:
+                    tmpvz = np.append(tmpvz,self.b09_vz)
+                    tmpvzerr = np.append(tmpvzerr,self.b09_vzerr)
+                    tmpdate = np.append(tmpdate,self.b09_date)
+                    py.errorbar(self.b09_date,self.b09_vz,yerr=self.b09_vzerr,fmt='.',label='Bartko 2009')
+                except:
+                    print self.name+' does not have a RV in Bartko 2009'
+            if ((wGill==True) & (hasattr(self,'g17_vz'))):
+                try:
+                    tmpvz = np.append(tmpvz,self.g17_vz)
+                    tmpvzerr = np.append(tmpvzerr,self.g17_vzerr)
+                    tmpdate = np.append(tmpdate,self.g17_date)
+                    py.errorbar(self.g17_date,self.g17_vz,yerr=self.g17_vzerr,fmt='.',label='Gillessen 2017')
+                except:
+                    print self.name+' does not have a RV in Gillessen 2017'
+            py.errorbar(self.date,self.vz,yerr=self.vzerr,fmt='.',label='UCLA')
+            tmpt0 = np.average(tmpdate,weights=[1.0/e/e for e in tmpvzerr])
+            v_terms, v_conv = pf2.polyfit2(tmpdate,tmpvz,deg=1,errors=tmpvzerr,t0=tmpt0)
+            plot_date = np.array([np.min(tmpdate) + i*((future_yr-np.min(tmpdate))/100.0) for i in range(101)])
+            plot_rv = v_terms[0] + v_terms[1]*(plot_date - tmpt0)
+            if (len(tmpdate)>= 3):
+                j_terms, j_conv = pf2.polyfit2(tmpdate,tmpvz,deg=2,errors=tmpvzerr,t0=tmpt0)
+                plot_jerk = j_terms[0] + j_terms[1]*(plot_date - tmpt0) + j_terms[2]*(plot_date - tmpt0)**2
+                future_jerk = j_terms[0] + j_terms[1]*(future_yr - tmpt0) + j_terms[2]*(future_yr - tmpt0)**2
+                jerk_error = np.abs(j_conv[0,0]) + (plot_date - tmpt0)**2 * np.abs(j_conv[1,1]) + np.abs(plot_date - tmpt0)*(np.abs(j_conv[0,1]) + np.abs(j_conv[1,0]))
+                jerk_error += (plot_date - tmpt0)**4 * np.abs(j_conv[2,2]) + (plot_date - tmpt0)**2 * (np.abs(j_conv[0,2]) + np.abs(j_conv[2,0])) + np.abs(plot_date - tmpt0)**3 * (np.abs(j_conv[1,2]) + np.abs(j_conv[2,1]))
+                jerk_error = np.sqrt(jerk_error)
+                future_jverr = np.abs(j_conv[0,0]) + (future_yr - tmpt0)**2 * np.abs(j_conv[1,1]) + np.abs(future_yr - tmpt0)*(np.abs(j_conv[0,1]) + np.abs(j_conv[1,0]))
+                future_jverr += (future_yr - tmpt0)**4 * np.abs(j_conv[2,2]) + (future_yr - tmpt0)**2 * (np.abs(j_conv[0,2]) + np.abs(j_conv[2,0])) + np.abs(future_yr - tmpt0)**3 * (np.abs(j_conv[1,2]) + np.abs(j_conv[2,1]))
+                future_jverr = math.sqrt(future_jverr)
+            else:
+                future_jerk = 0.0
+                future_jverr = 0.0
+            future_vz = v_terms[0] + v_terms[1]*(future_yr - tmpt0)
+            plot_error = np.sqrt(v_conv[0,0] + (plot_date - tmpt0)**2 * v_conv[1,1] + np.abs(plot_date - tmpt0)*(v_conv[0,1] + v_conv[1,0]))
+            future_vzerr = math.sqrt(v_conv[0,0] + (future_yr - tmpt0)**2 * v_conv[1,1] + np.abs(future_yr - tmpt0)*(v_conv[0,1] + v_conv[1,0]))
+            py.errorbar(future_yr,future_vz,yerr=future_vzerr,fmt='.',label='Predicted Accel')
+            if (len(tmpdate)>= 3):
+                py.errorbar(future_yr,future_jerk,yerr=future_jverr,fmt='.',label='Predicted Jerk')
+                py.plot(plot_date,plot_jerk,'r',label='Best Fit Jerk')
+                py.plot(plot_date,plot_jerk+jerk_error,'r:')
+                py.plot(plot_date,plot_jerk-jerk_error,'r:',label='Jerk Error')
+            py.plot(plot_date,plot_rv,'k',label='Best Fit Accel')
+            py.plot(plot_date,plot_rv+plot_error,'k--')
+            py.plot(plot_date,plot_rv-plot_error,'k--',label='Accel Error')
+            py.legend()
+            py.savefig('/u/schappell/plots/'+str(future_yr)+'_'+str(self.name)+'_RV.png')
+            py.clf()
+            #let's run the F test
+            pass_ftest_aj = 0.0
+            Fval_aj = 1e10
+            if (len(tmpdate)> 3):
+                pred_a = v_terms[0] + v_terms[1]*(tmpdate - tmpt0)
+                pred_j = j_terms[0] + j_terms[1]*(tmpdate - tmpt0) + j_terms[2]*(tmpdate - tmpt0)**2
+                chi2_a = np.sum((pred_a - tmpvz)**2/tmpvzerr/tmpvzerr)
+                chi2_j = np.sum((pred_j - tmpvz)**2/tmpvzerr/tmpvzerr)
+                dof_j = float(len(tmpvzerr)) - 3.0
+                Fval_aj = ((chi2_a - chi2_j)/1.0)/(chi2_j/dof_j)
+                Fprob_aj = stats.f.sf(Fval_aj,1,dof_j)
+                signif = scipy.special.erfc(4.0/math.sqrt(2.0))
+                if (Fprob_aj < signif):
+                    pass_ftest_aj = 1.0
+            
+            
+            rdex = np.argmax(tmpdate)
+            recent_rv = tmpvz[rdex]
+            recent_rverr = tmpvzerr[rdex]
+            recent_date = tmpdate[rdex]
+
+            return future_vz,future_vzerr,recent_date,recent_rv,recent_rverr,future_jerk,future_jverr, pass_ftest_aj, Fval_aj
+        else:
+            return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+
+
+
 
     def accel(self,wBartko=True):
         if ((len(self.vz) >= 2) | ((wBartko==True) & (hasattr(self,'b09_vz')))):
@@ -897,6 +1011,75 @@ class RVsample(object):
             tmpStar = RVstar(tmpName)
             if ((len(tmpStar.vzerr) > 0.0) & (tmpStar.mag >= 0.0)):
                 self.stars = np.append(self.stars,tmpStar)
+
+    def large_accel_sample(self,sigmaval=1.0,future_yr=2017.38,wBartko=True,Rcut=1.8):
+        
+        out = open('/u/schappell/tables/sig_accelZ_'+str(future_yr)+'.tex','w')
+        out.write('\\usepackage{url,epstopdf,lscape,graphicx,subfig,caption,subcaption} \n')
+        out.write('\\documentclass{aastex} \n')
+        out.write('\\begin{document} \n')
+        out.write('\\clearpage \n')
+        out.write('\\begin{landscape} \n')
+        out.write('\\begin{deluxetable}{lccccccccc} \n')
+        out.write('\\tabletypesize{\\tiny} \n')
+        out.write('\\setlength{\\tabcolsep}{1.0mm} \n')
+        out.write('\\tablewidth{0pt} \n')
+        
+        out.write('\\tablecaption{Stars with significant change in RV for '+str(future_yr)+'} \n')
+        out.write('\\tablehead{ \n')
+        out.write('  \\colhead{Star} & \n')
+        out.write("  \\colhead{K'} & \n")
+        out.write('  \\colhead{R$_{2D}$} & \n')
+        out.write('  \\colhead{Epochs} & \n')
+        out.write('  \\colhead{Average} & \n')
+        out.write('  \\multicolumn{2}{c}{Most Recent Measurement} & \n')
+        out.write('  \\multicolumn{2}{c}{Predicted RV (km/s)} & \n')
+        out.write('  \\colhead{F-test} & \\\\\n')
+        
+        out.write('%\n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{(arcsec)} & \n')
+        out.write('  \\colhead{} & \n')
+        out.write('  \\colhead{Error (km/s)} & \n')
+        out.write('  \\colhead{Date} & \n')
+        out.write('  \\colhead{RV (km/s)} & \n')
+        out.write('  \\colhead{Accel} & \n')
+        out.write('  \\colhead{Jerk} & \n')
+        out.write('  \\colhead{Value} & \n')
+        out.write('} \n')
+        out.write('\\startdata \n')
+        fmt = '%15s  %1s  %5.2f  %1s  %5.2f  %1s  %2d  %1s  %5.2f  %1s  %5.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %5s  %6.2f  %1s  %6.2f  %4s\n'
+
+        for tmpStar in self.stars:
+            future_vz,future_vzerr,recent_date,recent_vz,recent_vzerr,future_jerk,future_jverr,passFtest,ftestval=tmpStar.futureRV(future_yr=future_yr,wBartko=wBartko)
+            if ((np.abs(future_vz-recent_vz)>(sigmaval*(future_vzerr+recent_vzerr))) & (tmpStar.r2d<Rcut) & (recent_date!=0.0) & (passFtest==0.0)):
+                out.write(fmt % (tmpStar.name, '&', tmpStar.mag, '&', tmpStar.r2d, '&', len(tmpStar.vz), '&', np.average(tmpStar.vzerr), '&', recent_date, '&', recent_vz, '$\pm$', recent_vzerr, '&', future_vz, '$\pm$', future_vzerr, '&', future_jerk, '$\pm$', future_jverr, '&', ftestval, '\\\\'))
+            elif((np.abs(future_jerk-recent_vz)>(sigmaval*(future_jverr+recent_vzerr))) & (tmpStar.r2d<Rcut) & (recent_date!=0.0) & (passFtest==1.0)):
+                out.write(fmt % (tmpStar.name, '&', tmpStar.mag, '&', tmpStar.r2d, '&', len(tmpStar.vz), '&', np.average(tmpStar.vzerr), '&', recent_date, '&', recent_vz, '$\pm$', recent_vzerr, '&', future_vz, '$\pm$', future_vzerr, '&', future_jerk, '$\pm$', future_jverr, '&', ftestval, '\\\\'))
+        out.write('\\hline \n')
+        out.write('\\hline \n')
+        out.write('\\multicolumn{10}{c}{Non-significant Change in RV} & \n')
+        out.write('\\\\ \n')
+        out.write('\\hline \n')
+        for tmpStar in self.stars:
+            future_vz,future_vzerr,recent_date,recent_vz,recent_vzerr,future_jerk,future_jverr,passFtest,ftestval=tmpStar.futureRV(future_yr=future_yr,wBartko=wBartko)
+            if ((np.abs(future_vz-recent_vz)<=(sigmaval*(future_vzerr+recent_vzerr))) & (tmpStar.r2d<Rcut) & (recent_date!=0.0) & (passFtest==0.0)):
+                out.write(fmt % (tmpStar.name, '&', tmpStar.mag, '&', tmpStar.r2d, '&', len(tmpStar.vz), '&', np.average(tmpStar.vzerr), '&', recent_date, '&', recent_vz, '$\pm$', recent_vzerr, '&', future_vz, '$\pm$', future_vzerr, '&', future_jerk, '$\pm$', future_jverr, '&', ftestval, '\\\\'))
+            elif((np.abs(future_jerk-recent_vz)<=(sigmaval*(future_jverr+recent_vzerr))) & (tmpStar.r2d<Rcut) & (recent_date!=0.0) & (passFtest==1.0)):
+                out.write(fmt % (tmpStar.name, '&', tmpStar.mag, '&', tmpStar.r2d, '&', len(tmpStar.vz), '&', np.average(tmpStar.vzerr), '&', recent_date, '&', recent_vz, '$\pm$', recent_vzerr, '&', future_vz, '$\pm$', future_vzerr, '&', future_jerk, '$\pm$', future_jverr, '&', ftestval, '\\\\'))
+
+        out.write('\\\\\n')
+        out.write('\\enddata \n')
+        out.write('\\end{deluxetable} \n')
+        out.write('\\clearpage \n')
+        out.write('\\end{landscape} \n')
+        out.write('\\end{document} \n')
+        out.close()
+        
+
+
+                
 
     def plotBartko(self):
         py.clf()
